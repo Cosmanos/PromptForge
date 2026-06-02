@@ -27,6 +27,14 @@ export async function callJSON<T>(
   return JSON.parse(text) as T
 }
 
+export async function callChat(
+  messages: OpenAI.Chat.ChatCompletionMessageParam[],
+  model: string = 'gpt-4o'
+): Promise<string> {
+  const completion = await getClient().chat.completions.create({ model, messages })
+  return completion.choices[0].message.content ?? ''
+}
+
 export async function streamToResponse(
   messages: OpenAI.Chat.ChatCompletionMessageParam[],
   model: string,

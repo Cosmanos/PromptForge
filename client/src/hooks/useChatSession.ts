@@ -1,68 +1,39 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { api, streamWithSessionId, streamSSE } from '@/lib/api'
-import type { Message } from '@/types'
+import { api } from '@/lib/api'
 
 export function useChatSession(promptId: number | undefined) {
   const qc = useQueryClient()
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null)
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string; id?: number }>>([])
-  const [streamingContent, setStreamingContent] = useState('')
-  const [isStreaming, setIsStreaming] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   async function execute(variableValues: Record<string, string>) {
     if (!promptId) return
-    setIsStreaming(true)
-    setStreamingContent('')
+    setIsLoading(true)
     setMessages([])
-    let fullContent = ''
-
-    await streamWithSessionId(
-      `/sessions`,
-      { prompt_id: promptId, variable_values: variableValues },
-      (chunk) => {
-        fullContent += chunk
-        setStreamingContent(fullContent)
-      },
-      async (sessionId) => {
-        setIsStreaming(false)
-        setStreamingContent('')
-        if (sessionId) {
-          const numSid = Number(sessionId)
-          setActiveSessionId(numSid)
-          await api.sessions.saveAssistant(numSid, fullContent)
-          const session = await api.sessions.get(numSid)
-          setMessages(session.messages)
-          qc.invalidateQueries({ queryKey: ['sessions', promptId] })
-        }
-      },
-      () => setIsStreaming(false)
-    )
+    try {
+      const { session_id } = await api.sessions.create(promptId, variableValues)
+      setActiveSessionId(session_id)
+      const session = await api.sessions.get(session_id)
+      setMessages(session.messages)
+      qc.invalidateQueries({ queryKey: ['sessions', promptId] })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   async function sendMessage(content: string) {
     if (!activeSessionId) return
     setMessages((prev) => [...prev, { role: 'user', content }])
-    setIsStreaming(true)
-    setStreamingContent('')
-    let fullContent = ''
-
-    await streamSSE(
-      `/sessions/${activeSessionId}/messages`,
-      { content },
-      (chunk) => {
-        fullContent += chunk
-        setStreamingContent(fullContent)
-      },
-      async () => {
-        setIsStreaming(false)
-        setStreamingContent('')
-        await api.sessions.saveMessage(activeSessionId, 'assistant', fullContent)
-        setMessages((prev) => [...prev, { role: 'assistant', content: fullContent }])
-        qc.invalidateQueries({ queryKey: ['sessions', promptId] })
-      },
-      () => setIsStreaming(false)
-    )
+    setIsLoading(true)
+    try {
+      const { reply } = await api.sessions.sendMessage(activeSessionId, content)
+      setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
+      qc.invalidateQueries({ queryKey: ['sessions', promptId] })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   async function loadSession(sessionId: number) {
@@ -71,13 +42,5 @@ export function useChatSession(promptId: number | undefined) {
     setMessages(session.messages)
   }
 
-  return {
-    activeSessionId,
-    messages,
-    streamingContent: isStreaming ? streamingContent : undefined,
-    isStreaming,
-    execute,
-    sendMessage,
-    loadSession,
-  }
+  return { activeSessionId, messages, isLoading, execute, sendMessage, loadSession }
 }

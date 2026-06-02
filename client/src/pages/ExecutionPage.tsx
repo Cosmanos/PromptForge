@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Loader2, History } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -6,9 +6,8 @@ import { VariableForm } from '@/components/execution/VariableForm'
 import { ChatWindow } from '@/components/execution/ChatWindow'
 import { HistorySidebar } from '@/components/execution/HistorySidebar'
 import { usePrompt } from '@/hooks/usePrompts'
-import { api, streamWithSessionId, streamSSE } from '@/lib/api'
+import { api } from '@/lib/api'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Message, SessionListItem } from '@/types'
 
 export function ExecutionPage() {
   const { id } = useParams<{ id: string }>()
@@ -16,7 +15,7 @@ export function ExecutionPage() {
   const promptId = id ? Number(id) : undefined
   const qc = useQueryClient()
 
-  const { data: prompt, isLoading } = usePrompt(promptId)
+  const { data: prompt, isLoading: promptLoading } = usePrompt(promptId)
 
   const { data: sessions = [] } = useQuery({
     queryKey: ['sessions', promptId],
@@ -26,80 +25,37 @@ export function ExecutionPage() {
 
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null)
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string; id?: number }>>([])
-  const [streamingContent, setStreamingContent] = useState('')
-  const [isStreaming, setIsStreaming] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [showSidebar, setShowSidebar] = useState(false)
   const [hasExecuted, setHasExecuted] = useState(false)
 
   async function handleExecute(compiledPrompt: string, variableValues: Record<string, string>) {
     if (!promptId) return
-    setIsStreaming(true)
-    setStreamingContent('')
+    setIsLoading(true)
     setMessages([])
     setHasExecuted(true)
-
-    let fullContent = ''
-    let sessionId: string | null = null
-
-    await streamWithSessionId(
-      `/sessions`,
-      { prompt_id: promptId, variable_values: variableValues, compiled_prompt: compiledPrompt },
-      (chunk) => {
-        fullContent += chunk
-        setStreamingContent(fullContent)
-      },
-      async (sid) => {
-        sessionId = sid
-        setIsStreaming(false)
-        setStreamingContent('')
-
-        if (sessionId) {
-          const numSid = Number(sessionId)
-          setActiveSessionId(numSid)
-
-          // Save assistant reply
-          await api.sessions.saveAssistant(numSid, fullContent)
-
-          // Load session messages
-          const session = await api.sessions.get(numSid)
-          setMessages(session.messages)
-
-          // Refresh history
-          qc.invalidateQueries({ queryKey: ['sessions', promptId] })
-        }
-      },
-      () => {
-        setIsStreaming(false)
-      }
-    )
+    try {
+      const { session_id } = await api.sessions.create(promptId, variableValues, compiledPrompt)
+      setActiveSessionId(session_id)
+      const session = await api.sessions.get(session_id)
+      setMessages(session.messages)
+      qc.invalidateQueries({ queryKey: ['sessions', promptId] })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   async function handleSendMessage(content: string) {
     if (!activeSessionId) return
-
     setMessages((prev) => [...prev, { role: 'user', content }])
-    setIsStreaming(true)
-    setStreamingContent('')
-
-    let fullContent = ''
-
-    await streamSSE(
-      `/sessions/${activeSessionId}/messages`,
-      { content },
-      (chunk) => {
-        fullContent += chunk
-        setStreamingContent(fullContent)
-      },
-      async () => {
-        setIsStreaming(false)
-        setStreamingContent('')
-        // Save assistant reply
-        await api.sessions.saveMessage(activeSessionId, 'assistant', fullContent)
-        setMessages((prev) => [...prev, { role: 'assistant', content: fullContent }])
-        qc.invalidateQueries({ queryKey: ['sessions', promptId] })
-      },
-      () => setIsStreaming(false)
-    )
+    setIsLoading(true)
+    try {
+      const { reply } = await api.sessions.sendMessage(activeSessionId, content)
+      setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
+      qc.invalidateQueries({ queryKey: ['sessions', promptId] })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   async function handleSelectSession(sessionId: number) {
@@ -109,7 +65,7 @@ export function ExecutionPage() {
     setHasExecuted(true)
   }
 
-  if (isLoading) {
+  if (promptLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -179,14 +135,13 @@ export function ExecutionPage() {
                 variables={prompt.variables}
                 rawPrompt={activePromptText}
                 onExecute={handleExecute}
-                isLoading={isStreaming}
+                isLoading={isLoading}
               />
             </div>
           ) : (
             <ChatWindow
               messages={messages}
-              streamingContent={isStreaming ? streamingContent : undefined}
-              isStreaming={isStreaming}
+              isLoading={isLoading}
               onSendMessage={handleSendMessage}
             />
           )}

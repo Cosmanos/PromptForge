@@ -1,21 +1,20 @@
 import { useEffect, useRef } from 'react'
+import { Loader2 } from 'lucide-react'
 import { ChatMessage } from './ChatMessage'
 import { ChatInput } from './ChatInput'
-import type { Message } from '@/types'
 
 interface ChatWindowProps {
   messages: Array<{ role: 'user' | 'assistant'; content: string; id?: number }>
-  streamingContent?: string
-  isStreaming: boolean
+  isLoading: boolean
   onSendMessage: (content: string) => void
 }
 
-export function ChatWindow({ messages, streamingContent, isStreaming, onSendMessage }: ChatWindowProps) {
+export function ChatWindow({ messages, isLoading, onSendMessage }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamingContent])
+  }, [messages, isLoading])
 
   return (
     <div className="flex flex-col h-full">
@@ -23,16 +22,17 @@ export function ChatWindow({ messages, streamingContent, isStreaming, onSendMess
         {messages.map((msg, i) => (
           <ChatMessage key={msg.id ?? i} message={msg} />
         ))}
-        {isStreaming && streamingContent !== undefined && (
-          <ChatMessage
-            message={{ role: 'assistant', content: streamingContent }}
-            isStreaming={true}
-          />
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="bg-white border border-border rounded-2xl rounded-tl-sm px-4 py-3">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          </div>
         )}
         <div ref={bottomRef} />
       </div>
       <div className="p-4 border-t border-border shrink-0">
-        <ChatInput onSend={onSendMessage} disabled={isStreaming} />
+        <ChatInput onSend={onSendMessage} disabled={isLoading} />
       </div>
     </div>
   )

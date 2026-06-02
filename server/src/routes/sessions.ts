@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { z } from 'zod'
 import sql from '../db/database'
-import { streamToResponse } from '../services/openai'
+import { callChat } from '../services/openai'
 import { compilePrompt } from '../services/promptBuilder'
 import { Prompt, Variable, Session, Message } from '../types'
 import OpenAI from 'openai'
@@ -18,7 +18,7 @@ const AddMessageSchema = z.object({
   content: z.string().min(1),
 })
 
-// POST /api/sessions — create a new session and send first message
+// POST /api/sessions — create session, await full reply, return JSON
 router.post('/', async (req: Request, res: Response) => {
   const parsed = CreateSessionSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
@@ -30,7 +30,6 @@ router.post('/', async (req: Request, res: Response) => {
 
   const variables = await sql<Variable[]>`SELECT * FROM variables WHERE prompt_id = ${prompt_id}`
 
-  // Merge: use provided values, fall back to defaults
   const merged: Record<string, string> = {}
   for (const v of variables) {
     merged[v.name] = variable_values[v.name] ?? v.default_value
@@ -48,31 +47,18 @@ router.post('/', async (req: Request, res: Response) => {
     VALUES (${prompt_id}, ${JSON.stringify(merged)}, ${compiled}, ${prompt.model})
     RETURNING id
   `
+  const sid = Number(sessionId)
 
-  await sql`
-    INSERT INTO messages (session_id, role, content)
-    VALUES (${Number(sessionId)}, 'user', ${compiled})
-  `
+  await sql`INSERT INTO messages (session_id, role, content) VALUES (${sid}, 'user', ${compiled})`
 
-  res.setHeader('X-Session-Id', String(sessionId))
-  await streamToResponse(
-    [{ role: 'user', content: compiled }],
-    prompt.model,
-    res
-  )
+  const reply = await callChat([{ role: 'user', content: compiled }], prompt.model)
+
+  await sql`INSERT INTO messages (session_id, role, content) VALUES (${sid}, 'assistant', ${reply})`
+
+  res.json({ session_id: sid, reply })
 })
 
-// POST /api/sessions/:id/save-assistant — save assistant reply after stream
-router.post('/:id/save-assistant', async (req: Request, res: Response) => {
-  const id = Number(req.params.id)
-  const { content } = req.body
-  if (!content) return res.status(400).json({ error: 'content required' })
-
-  await sql`INSERT INTO messages (session_id, role, content) VALUES (${id}, 'assistant', ${content})`
-  res.json({ ok: true })
-})
-
-// POST /api/sessions/:id/messages — follow-up message (streams reply)
+// POST /api/sessions/:id/messages — follow-up, await full reply, return JSON
 router.post('/:id/messages', async (req: Request, res: Response) => {
   const id = Number(req.params.id)
   const [session] = await sql<Session[]>`SELECT * FROM sessions WHERE id = ${id}`
@@ -94,17 +80,11 @@ router.post('/:id/messages', async (req: Request, res: Response) => {
     { role: 'user', content },
   ]
 
-  await streamToResponse(messagesForLLM, session.model, res)
-})
+  const reply = await callChat(messagesForLLM, session.model)
 
-// POST /api/sessions/:id/save-message — save a follow-up assistant reply
-router.post('/:id/save-message', async (req: Request, res: Response) => {
-  const id = Number(req.params.id)
-  const { role, content } = req.body
-  if (!content || !role) return res.status(400).json({ error: 'role and content required' })
+  await sql`INSERT INTO messages (session_id, role, content) VALUES (${id}, 'assistant', ${reply})`
 
-  await sql`INSERT INTO messages (session_id, role, content) VALUES (${id}, ${role}, ${content})`
-  res.json({ ok: true })
+  res.json({ reply })
 })
 
 // GET /api/sessions/:id — full session with messages

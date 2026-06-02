@@ -48,20 +48,15 @@ export const api = {
   sessions: {
     list: (promptId: number) => req<SessionListItem[]>(`/sessions?prompt_id=${promptId}`),
     get: (id: number) => req<SessionWithMessages>(`/sessions/${id}`),
-    create: (prompt_id: number, variable_values: Record<string, string>) =>
-      req<{ session_id: number }>('/sessions', {
+    create: (prompt_id: number, variable_values: Record<string, string>, compiled_prompt?: string) =>
+      req<{ session_id: number; reply: string }>('/sessions', {
         method: 'POST',
-        body: JSON.stringify({ prompt_id, variable_values }),
+        body: JSON.stringify({ prompt_id, variable_values, ...(compiled_prompt ? { compiled_prompt } : {}) }),
       }),
-    saveAssistant: (sessionId: number, content: string) =>
-      req<{ ok: boolean }>(`/sessions/${sessionId}/save-assistant`, {
+    sendMessage: (id: number, content: string) =>
+      req<{ reply: string }>(`/sessions/${id}/messages`, {
         method: 'POST',
         body: JSON.stringify({ content }),
-      }),
-    saveMessage: (sessionId: number, role: string, content: string) =>
-      req<{ ok: boolean }>(`/sessions/${sessionId}/save-message`, {
-        method: 'POST',
-        body: JSON.stringify({ role, content }),
       }),
   },
 }
