@@ -8,7 +8,11 @@
       "Bash(node_modules/.bin/vite build:*)",
       "Bash(node_modules/.bin/tsx src/index.ts)",
       "Bash(node_modules/.bin/vite)",
-      "Bash(netstat -ano)"
+      "Bash(netstat -ano)",
+      "Bash(xargs grep -l \"CREATE TABLE\\\\|database\\\\|schema\")",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "PowerShell(netstat *)"
     ]
   }
 }

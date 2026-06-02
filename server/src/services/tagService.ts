@@ -1,16 +1,13 @@
-import db from '../db/database'
+import sql from '../db/database'
 import { Tag } from '../types'
 
-export function getAllTags(): Tag[] {
-  return db.prepare('SELECT * FROM tags ORDER BY sort_order').all() as Tag[]
+export async function getAllTags(): Promise<Tag[]> {
+  return await sql<Tag[]>`SELECT * FROM tags ORDER BY sort_order`
 }
 
-export function getTagsByIds(ids: number[]): Tag[] {
+export async function getTagsByIds(ids: number[]): Promise<Tag[]> {
   if (ids.length === 0) return []
-  const placeholders = ids.map(() => '?').join(', ')
-  return db
-    .prepare(`SELECT * FROM tags WHERE id IN (${placeholders}) ORDER BY sort_order`)
-    .all(...ids) as Tag[]
+  return await sql<Tag[]>`SELECT * FROM tags WHERE id = ANY(${ids}) ORDER BY sort_order`
 }
 
 export function buildTagListForPrompt(tags: Tag[]): string {

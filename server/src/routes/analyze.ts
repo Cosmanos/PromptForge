@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import db from '../db/database'
+import sql from '../db/database'
 import { callJSON } from '../services/openai'
 import { getAllTags, buildTagListForPrompt } from '../services/tagService'
 import { Prompt } from '../types'
@@ -8,10 +8,10 @@ const router = Router({ mergeParams: true })
 
 router.post('/', async (req: Request, res: Response) => {
   const id = Number(req.params.id)
-  const prompt = db.prepare('SELECT * FROM prompts WHERE id = ?').get(id) as Prompt | undefined
+  const [prompt] = await sql<Prompt[]>`SELECT * FROM prompts WHERE id = ${id}`
   if (!prompt) return res.status(404).json({ error: 'Prompt not found' })
 
-  const tags = getAllTags()
+  const tags = await getAllTags()
   const tagList = buildTagListForPrompt(tags)
 
   const systemPrompt = `You are a prompt engineering expert. Your job is to analyze the given LLM prompt template and suggest which of the following enhancement tags would most meaningfully improve it.

@@ -1,17 +1,9 @@
-import Database from 'better-sqlite3'
-import path from 'path'
+import postgres from 'postgres'
 import dotenv from 'dotenv'
+import path from 'path'
 
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') })
 
-const dbPath = process.env.DATABASE_PATH
-  ? path.resolve(process.cwd(), process.env.DATABASE_PATH)
-  : path.resolve(__dirname, '../../../promptforge.db')
+const sql = postgres(process.env.DATABASE_URL!, { prepare: false })
 
-const db = new Database(dbPath)
-
-// Enable WAL mode for better concurrent read performance
-db.pragma('journal_mode = WAL')
-db.pragma('foreign_keys = ON')
-
-export default db
+export default sql

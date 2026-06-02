@@ -9,9 +9,15 @@ import { seedTags } from './db/seed'
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001
 
-runMigrations()
-seedTags()
+async function start() {
+  await runMigrations()
+  await seedTags()
+  app.listen(PORT, () => {
+    console.log(`🚀 PromptForge server running on http://localhost:${PORT}`)
+  })
+}
 
-app.listen(PORT, () => {
-  console.log(`🚀 PromptForge server running on http://localhost:${PORT}`)
+start().catch((err) => {
+  console.error('Failed to start server:', err)
+  process.exit(1)
 })

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { z } from 'zod'
-import db from '../db/database'
+import sql from '../db/database'
 import { callJSON } from '../services/openai'
 import { getTagsByIds, buildTagHintsForRewrite } from '../services/tagService'
 import { Prompt } from '../types'
@@ -13,13 +13,13 @@ const RewriteSchema = z.object({
 
 router.post('/', async (req: Request, res: Response) => {
   const id = Number(req.params.id)
-  const prompt = db.prepare('SELECT * FROM prompts WHERE id = ?').get(id) as Prompt | undefined
+  const [prompt] = await sql<Prompt[]>`SELECT * FROM prompts WHERE id = ${id}`
   if (!prompt) return res.status(404).json({ error: 'Prompt not found' })
 
   const parsed = RewriteSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
 
-  const tags = getTagsByIds(parsed.data.tag_ids)
+  const tags = await getTagsByIds(parsed.data.tag_ids)
   if (tags.length === 0) return res.status(400).json({ error: 'No valid tags found' })
 
   const tagHints = buildTagHintsForRewrite(tags)

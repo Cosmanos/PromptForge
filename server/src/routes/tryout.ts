@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import db from '../db/database'
+import sql from '../db/database'
 import { streamToResponse } from '../services/openai'
 import { compilePrompt } from '../services/promptBuilder'
 import { Prompt, Variable } from '../types'
@@ -8,12 +8,10 @@ const router = Router({ mergeParams: true })
 
 router.post('/', async (req: Request, res: Response) => {
   const id = Number(req.params.id)
-  const prompt = db.prepare('SELECT * FROM prompts WHERE id = ?').get(id) as Prompt | undefined
+  const [prompt] = await sql<Prompt[]>`SELECT * FROM prompts WHERE id = ${id}`
   if (!prompt) return res.status(404).json({ error: 'Prompt not found' })
 
-  const variables = db
-    .prepare('SELECT * FROM variables WHERE prompt_id = ?')
-    .all(id) as Variable[]
+  const variables = await sql<Variable[]>`SELECT * FROM variables WHERE prompt_id = ${id}`
 
   const variableValues: Record<string, string> = {}
   for (const v of variables) {

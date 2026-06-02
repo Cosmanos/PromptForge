@@ -1,4 +1,4 @@
-import db from './database'
+import sql from './database'
 
 const PREDEFINED_TAGS = [
   {
@@ -43,16 +43,10 @@ const PREDEFINED_TAGS = [
   },
 ]
 
-export function seedTags() {
-  const count = (db.prepare('SELECT COUNT(*) as c FROM tags').get() as { c: number }).c
-  if (count > 0) return
+export async function seedTags(): Promise<void> {
+  const [{ c }] = await sql<[{ c: string }]>`SELECT COUNT(*) as c FROM tags`
+  if (Number(c) > 0) return
 
-  const insert = db.prepare(
-    'INSERT INTO tags (name, hint, sort_order) VALUES (@name, @hint, @sort_order)'
-  )
-  const insertMany = db.transaction((tags: typeof PREDEFINED_TAGS) => {
-    for (const tag of tags) insert.run(tag)
-  })
-  insertMany(PREDEFINED_TAGS)
+  await sql`INSERT INTO tags ${sql(PREDEFINED_TAGS, 'name', 'hint', 'sort_order')}`
   console.log('✅ Tags seeded')
 }
