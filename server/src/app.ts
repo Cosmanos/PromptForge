@@ -11,11 +11,17 @@ import analyzeRouter from './routes/analyze'
 import rewriteRouter from './routes/rewrite'
 import tryoutRouter from './routes/tryout'
 import sessionsRouter from './routes/sessions'
+import { requireAuth } from './middleware/auth'
 
 const app = express()
 
 app.use(cors())
 app.use(express.json())
+
+// All /api routes require a valid Supabase access token (verified locally
+// against the project JWKS). cors() above handles the OPTIONS preflight, and
+// requireAuth no-ops on OPTIONS as a second guard.
+app.use('/api', requireAuth)
 
 app.use('/api/tags', tagsRouter)
 app.use('/api/prompts', promptsRouter)

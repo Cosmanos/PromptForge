@@ -5,13 +5,26 @@ import type {
   SessionListItem,
   SessionWithMessages,
 } from '@/types'
+import { supabase } from '@/lib/supabase'
 
 const BASE = (import.meta.env.VITE_API_URL ?? '') + '/api'
 
+// Build request headers with the current Supabase access token attached as a
+// Bearer token. Every API call goes through this so no fetch site can miss it.
+async function authHeaders(extra?: HeadersInit): Promise<HeadersInit> {
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  }
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
     ...init,
+    headers: await authHeaders(init?.headers),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
@@ -73,7 +86,7 @@ export async function streamSSE(
   try {
     const res = await fetch(`${BASE}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await authHeaders(),
       body: JSON.stringify(body),
     })
 
@@ -134,7 +147,7 @@ export async function streamWithSessionId(
   try {
     const res = await fetch(`${BASE}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await authHeaders(),
       body: JSON.stringify(body),
     })
 

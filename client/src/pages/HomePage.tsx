@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Hammer } from 'lucide-react'
 import { SearchBar } from '@/components/home/SearchBar'
 import { PromptGrid } from '@/components/home/PromptGrid'
+import { AccountMenu } from '@/components/AccountMenu'
 import { usePromptList, useDeletePrompt } from '@/hooks/usePrompts'
 
 export function HomePage() {
@@ -31,6 +32,9 @@ export function HomePage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-3">
           <Hammer className="h-5 w-5 text-primary" />
           <h1 className="text-lg font-semibold">PromptForge</h1>
+          <div className="ml-auto">
+            <AccountMenu />
+          </div>
         </div>
       </header>
 
