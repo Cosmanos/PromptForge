@@ -33,8 +33,13 @@ const UpdatePromptSchema = z.object({
 
 // ---- Helpers ----
 
-async function getPromptWithDetails(id: number): Promise<PromptWithDetails | undefined> {
-  const [prompt] = await sql<Prompt[]>`SELECT * FROM prompts WHERE id = ${id}`
+async function getPromptWithDetails(
+  id: number,
+  userId: string
+): Promise<PromptWithDetails | undefined> {
+  const [prompt] = await sql<Prompt[]>`
+    SELECT * FROM prompts WHERE id = ${id} AND user_id = ${userId}
+  `
   if (!prompt) return undefined
 
   const variables = await sql<Variable[]>`
@@ -53,12 +58,14 @@ async function getPromptWithDetails(id: number): Promise<PromptWithDetails | und
 
 // ---- Routes ----
 
-// GET /api/prompts — list all prompts
-router.get('/', async (_req, res) => {
+// GET /api/prompts — list the caller's prompts
+router.get('/', async (req: Request, res: Response) => {
+  const userId = req.userId!
   const prompts = await sql`
     SELECT p.*, COUNT(v.id) as variable_count
     FROM prompts p
     LEFT JOIN variables v ON v.prompt_id = p.id
+    WHERE p.user_id = ${userId}
     GROUP BY p.id
     ORDER BY p.updated_at DESC
   `
@@ -68,31 +75,35 @@ router.get('/', async (_req, res) => {
 // GET /api/prompts/:id — full prompt with variables + tags
 router.get('/:id', async (req: Request, res: Response) => {
   const id = Number(req.params.id)
-  const prompt = await getPromptWithDetails(id)
+  const prompt = await getPromptWithDetails(id, req.userId!)
   if (!prompt) return res.status(404).json({ error: 'Prompt not found' })
   res.json(prompt)
 })
 
-// POST /api/prompts — create new prompt
+// POST /api/prompts — create new prompt owned by the caller
 router.post('/', async (req: Request, res: Response) => {
   const parsed = CreatePromptSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
 
+  const userId = req.userId!
   const name = parsed.data.name ?? 'Untitled Prompt'
   const model = parsed.data.model ?? 'gpt-4o'
 
   const [{ id }] = await sql<[{ id: number }]>`
-    INSERT INTO prompts (name, model) VALUES (${name}, ${model}) RETURNING id
+    INSERT INTO prompts (name, model, user_id) VALUES (${name}, ${model}, ${userId}) RETURNING id
   `
 
-  const prompt = await getPromptWithDetails(Number(id))
+  const prompt = await getPromptWithDetails(Number(id), userId)
   res.status(201).json(prompt)
 })
 
 // PATCH /api/prompts/:id — update (auto-save)
 router.patch('/:id', async (req: Request, res: Response) => {
   const id = Number(req.params.id)
-  const [existing] = await sql`SELECT id FROM prompts WHERE id = ${id}`
+  const userId = req.userId!
+  // Ownership gate — also covers PATCHes that touch only variables/tags
+  // (which mutate child rows without updating the prompt row itself).
+  const [existing] = await sql`SELECT id FROM prompts WHERE id = ${id} AND user_id = ${userId}`
   if (!existing) return res.status(404).json({ error: 'Prompt not found' })
 
   const parsed = UpdatePromptSchema.safeParse(req.body)
@@ -135,16 +146,15 @@ router.patch('/:id', async (req: Request, res: Response) => {
     })
   }
 
-  res.json(await getPromptWithDetails(id))
+  res.json(await getPromptWithDetails(id, userId))
 })
 
 // DELETE /api/prompts/:id
 router.delete('/:id', async (req: Request, res: Response) => {
   const id = Number(req.params.id)
-  const [existing] = await sql`SELECT id FROM prompts WHERE id = ${id}`
-  if (!existing) return res.status(404).json({ error: 'Prompt not found' })
-
-  await sql`DELETE FROM prompts WHERE id = ${id}`
+  const userId = req.userId!
+  const deleted = await sql`DELETE FROM prompts WHERE id = ${id} AND user_id = ${userId} RETURNING id`
+  if (deleted.length === 0) return res.status(404).json({ error: 'Prompt not found' })
   res.status(204).send()
 })
 

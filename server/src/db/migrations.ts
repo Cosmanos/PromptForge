@@ -64,5 +64,24 @@ export async function runMigrations(): Promise<void> {
     )
   `
 
+  // ---- Part 2: per-user ownership ----
+  // Direct ownership on top-level tables. variables/prompt_tags/messages stay
+  // unscoped at the DB level and inherit ownership through their parent.
+  // (No FK to auth.users: enforcement is in the API query layer, not the DB.)
+  await sql`ALTER TABLE prompts  ADD COLUMN IF NOT EXISTS user_id UUID`
+  await sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_id UUID`
+
+  // One-time fresh start: wipe legacy rows that predate ownership. New rows
+  // always carry user_id, so on every later boot this matches nothing.
+  // Deleting a prompt cascades to its variables, prompt_tags, sessions, messages.
+  await sql`DELETE FROM prompts  WHERE user_id IS NULL`
+  await sql`DELETE FROM sessions WHERE user_id IS NULL`
+
+  await sql`ALTER TABLE prompts  ALTER COLUMN user_id SET NOT NULL`
+  await sql`ALTER TABLE sessions ALTER COLUMN user_id SET NOT NULL`
+
+  await sql`CREATE INDEX IF NOT EXISTS idx_prompts_user_id  ON prompts(user_id)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`
+
   console.log('✅ Migrations complete')
 }

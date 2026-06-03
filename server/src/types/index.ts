@@ -16,6 +16,7 @@ export interface Variable {
 
 export interface Prompt {
   id: number
+  user_id: string
   name: string
   raw_prompt: string
   rewritten_prompt: string | null
@@ -32,6 +33,7 @@ export interface PromptWithDetails extends Prompt {
 
 export interface Session {
   id: number
+  user_id: string
   prompt_id: number
   variable_values: string
   compiled_prompt: string

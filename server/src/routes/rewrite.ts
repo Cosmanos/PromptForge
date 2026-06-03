@@ -13,7 +13,9 @@ const RewriteSchema = z.object({
 
 router.post('/', async (req: Request, res: Response) => {
   const id = Number(req.params.id)
-  const [prompt] = await sql<Prompt[]>`SELECT * FROM prompts WHERE id = ${id}`
+  const [prompt] = await sql<Prompt[]>`
+    SELECT * FROM prompts WHERE id = ${id} AND user_id = ${req.userId!}
+  `
   if (!prompt) return res.status(404).json({ error: 'Prompt not found' })
 
   const parsed = RewriteSchema.safeParse(req.body)

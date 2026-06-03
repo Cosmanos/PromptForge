@@ -24,8 +24,11 @@ router.post('/', async (req: Request, res: Response) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
 
   const { prompt_id, variable_values, compiled_prompt: precompiled } = parsed.data
+  const userId = req.userId!
 
-  const [prompt] = await sql<Prompt[]>`SELECT * FROM prompts WHERE id = ${prompt_id}`
+  const [prompt] = await sql<Prompt[]>`
+    SELECT * FROM prompts WHERE id = ${prompt_id} AND user_id = ${userId}
+  `
   if (!prompt) return res.status(404).json({ error: 'Prompt not found' })
 
   const variables = await sql<Variable[]>`SELECT * FROM variables WHERE prompt_id = ${prompt_id}`
@@ -43,8 +46,8 @@ router.post('/', async (req: Request, res: Response) => {
   const compiled = precompiled ?? compilePrompt(activePrompt, merged)
 
   const [{ id: sessionId }] = await sql<[{ id: number }]>`
-    INSERT INTO sessions (prompt_id, variable_values, compiled_prompt, model)
-    VALUES (${prompt_id}, ${JSON.stringify(merged)}, ${compiled}, ${prompt.model})
+    INSERT INTO sessions (prompt_id, user_id, variable_values, compiled_prompt, model)
+    VALUES (${prompt_id}, ${userId}, ${JSON.stringify(merged)}, ${compiled}, ${prompt.model})
     RETURNING id
   `
   const sid = Number(sessionId)
@@ -61,7 +64,9 @@ router.post('/', async (req: Request, res: Response) => {
 // POST /api/sessions/:id/messages — follow-up, await full reply, return JSON
 router.post('/:id/messages', async (req: Request, res: Response) => {
   const id = Number(req.params.id)
-  const [session] = await sql<Session[]>`SELECT * FROM sessions WHERE id = ${id}`
+  const [session] = await sql<Session[]>`
+    SELECT * FROM sessions WHERE id = ${id} AND user_id = ${req.userId!}
+  `
   if (!session) return res.status(404).json({ error: 'Session not found' })
 
   const parsed = AddMessageSchema.safeParse(req.body)
@@ -90,7 +95,9 @@ router.post('/:id/messages', async (req: Request, res: Response) => {
 // GET /api/sessions/:id — full session with messages
 router.get('/:id', async (req: Request, res: Response) => {
   const id = Number(req.params.id)
-  const [session] = await sql<Session[]>`SELECT * FROM sessions WHERE id = ${id}`
+  const [session] = await sql<Session[]>`
+    SELECT * FROM sessions WHERE id = ${id} AND user_id = ${req.userId!}
+  `
   if (!session) return res.status(404).json({ error: 'Session not found' })
 
   const messages = await sql<Message[]>`
@@ -104,12 +111,13 @@ router.get('/', async (req: Request, res: Response) => {
   const promptId = Number(req.query.prompt_id)
   if (!promptId) return res.status(400).json({ error: 'prompt_id required' })
 
+  // Scoping by user_id isolates the caller; another user's prompt_id yields [].
   const sessions = await sql`
     SELECT s.*,
       (SELECT content FROM messages WHERE session_id = s.id ORDER BY created_at LIMIT 1) as first_message,
       (SELECT COUNT(*) FROM messages WHERE session_id = s.id) as message_count
     FROM sessions s
-    WHERE s.prompt_id = ${promptId}
+    WHERE s.prompt_id = ${promptId} AND s.user_id = ${req.userId!}
     ORDER BY s.created_at DESC
   `
   res.json(sessions)
