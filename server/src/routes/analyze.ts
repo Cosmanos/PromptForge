@@ -13,7 +13,7 @@ router.post('/', async (req: Request, res: Response) => {
   `
   if (!prompt) return res.status(404).json({ error: 'Prompt not found' })
 
-  const tags = await getAllTags()
+  const tags = await getAllTags(req.userId!)
   const tagList = buildTagListForPrompt(tags)
 
   const systemPrompt = `You are a prompt engineering expert. Your job is to analyze the given LLM prompt template and suggest which of the following enhancement tags would most meaningfully improve it.

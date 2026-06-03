@@ -21,7 +21,7 @@ router.post('/', async (req: Request, res: Response) => {
   const parsed = RewriteSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
 
-  const tags = await getTagsByIds(parsed.data.tag_ids)
+  const tags = await getTagsByIds(parsed.data.tag_ids, req.userId!)
   if (tags.length === 0) return res.status(400).json({ error: 'No valid tags found' })
 
   const tagHints = buildTagHintsForRewrite(tags)

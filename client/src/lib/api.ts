@@ -2,9 +2,13 @@ import type {
   PromptListItem,
   PromptWithDetails,
   Tag,
+  DefaultTag,
+  Me,
   SessionListItem,
   SessionWithMessages,
 } from '@/types'
+
+type TagInput = { name: string; hint: string; sort_order?: number }
 import { supabase } from '@/lib/supabase'
 
 const BASE = (import.meta.env.VITE_API_URL ?? '') + '/api'
@@ -54,8 +58,24 @@ export const api = {
       }),
   },
 
+  me: () => req<Me>('/me'),
+
   tags: {
     list: () => req<Tag[]>('/tags'),
+    create: (data: TagInput) =>
+      req<Tag>('/tags', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<TagInput>) =>
+      req<Tag>(`/tags/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: number) => req<void>(`/tags/${id}`, { method: 'DELETE' }),
+  },
+
+  defaultTags: {
+    list: () => req<DefaultTag[]>('/admin/default-tags'),
+    create: (data: TagInput) =>
+      req<DefaultTag>('/admin/default-tags', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<TagInput>) =>
+      req<DefaultTag>(`/admin/default-tags/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: number) => req<void>(`/admin/default-tags/${id}`, { method: 'DELETE' }),
   },
 
   sessions: {

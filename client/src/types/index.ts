@@ -4,9 +4,23 @@ import type { ColorToken } from '@/lib/utils'
 
 export interface Tag {
   id: number
+  user_id: string
   name: string
   hint: string
   sort_order: number
+}
+
+// Admin template tag (no owner). Shape otherwise mirrors Tag.
+export interface DefaultTag {
+  id: number
+  name: string
+  hint: string
+  sort_order: number
+}
+
+export interface Me {
+  user_id: string
+  is_admin: boolean
 }
 
 export interface Variable {

@@ -11,6 +11,8 @@ import analyzeRouter from './routes/analyze'
 import rewriteRouter from './routes/rewrite'
 import tryoutRouter from './routes/tryout'
 import sessionsRouter from './routes/sessions'
+import meRouter from './routes/me'
+import adminDefaultTagsRouter from './routes/adminDefaultTags'
 import { requireAuth } from './middleware/auth'
 
 const app = express()
@@ -23,6 +25,8 @@ app.use(express.json())
 // requireAuth no-ops on OPTIONS as a second guard.
 app.use('/api', requireAuth)
 
+app.use('/api/me', meRouter)
+app.use('/api/admin/default-tags', adminDefaultTagsRouter)
 app.use('/api/tags', tagsRouter)
 app.use('/api/prompts', promptsRouter)
 app.use('/api/prompts/:id/analyze', analyzeRouter)

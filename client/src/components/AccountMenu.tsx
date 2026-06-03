@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { LogOut, User } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { LogOut, Settings, User } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 
 export function AccountMenu() {
   const { user, signOut } = useAuth()
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -34,6 +36,17 @@ export function AccountMenu() {
             <p className="text-xs text-muted-foreground">Signed in as</p>
             <p className="text-sm font-medium truncate">{label}</p>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false)
+              navigate('/settings')
+            }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent transition-colors"
+          >
+            <Settings className="h-4 w-4" />
+            Settings
+          </button>
           <button
             type="button"
             onClick={() => signOut()}

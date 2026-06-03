@@ -17,11 +17,81 @@ export function usePrompt(id: number | undefined) {
   })
 }
 
+export function useMe() {
+  return useQuery({
+    queryKey: ['me'],
+    queryFn: () => api.me(),
+    staleTime: Infinity,
+  })
+}
+
 export function useTags() {
   return useQuery({
     queryKey: ['tags'],
     queryFn: () => api.tags.list(),
     staleTime: Infinity,
+  })
+}
+
+// ---- Tag CRUD (the caller's own tags) ----
+
+export function useCreateTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { name: string; hint: string; sort_order?: number }) => api.tags.create(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tags'] }),
+  })
+}
+
+export function useUpdateTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: { name?: string; hint?: string; sort_order?: number } }) =>
+      api.tags.update(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tags'] }),
+  })
+}
+
+export function useDeleteTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.tags.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tags'] }),
+  })
+}
+
+// ---- Admin: default_tags template ----
+
+export function useDefaultTags(enabled: boolean) {
+  return useQuery({
+    queryKey: ['default-tags'],
+    queryFn: () => api.defaultTags.list(),
+    enabled,
+  })
+}
+
+export function useCreateDefaultTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { name: string; hint: string; sort_order?: number }) => api.defaultTags.create(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['default-tags'] }),
+  })
+}
+
+export function useUpdateDefaultTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: { name?: string; hint?: string; sort_order?: number } }) =>
+      api.defaultTags.update(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['default-tags'] }),
+  })
+}
+
+export function useDeleteDefaultTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.defaultTags.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['default-tags'] }),
   })
 }
 

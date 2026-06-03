@@ -83,5 +83,60 @@ export async function runMigrations(): Promise<void> {
   await sql`CREATE INDEX IF NOT EXISTS idx_prompts_user_id  ON prompts(user_id)`
   await sql`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`
 
+  // ---- Part 3: per-user tags + admin template ----
+  // default_tags is the admin-maintained seed; profiles holds the is_admin flag.
+  await sql`
+    CREATE TABLE IF NOT EXISTS default_tags (
+      id         BIGSERIAL PRIMARY KEY,
+      name       TEXT NOT NULL UNIQUE,
+      hint       TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `
+  await sql`
+    CREATE TABLE IF NOT EXISTS profiles (
+      id         UUID PRIMARY KEY,
+      is_admin   BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `
+
+  // Make tags per-user. Add the column first so the one-time move below can
+  // target the original global rows (user_id IS NULL).
+  await sql`ALTER TABLE tags ADD COLUMN IF NOT EXISTS user_id UUID`
+
+  // One-time move: the current global tags become the admin template seed.
+  await sql`
+    INSERT INTO default_tags (name, hint, sort_order)
+    SELECT name, hint, sort_order FROM tags WHERE user_id IS NULL
+    ON CONFLICT (name) DO NOTHING
+  `
+  // Drop the now-moved global rows; per-user copies are created at provisioning.
+  await sql`DELETE FROM tags WHERE user_id IS NULL`
+  await sql`ALTER TABLE tags ALTER COLUMN user_id SET NOT NULL`
+
+  // Replace the old global UNIQUE(name) with a per-user UNIQUE(user_id, name).
+  // Drop any unique constraint on tags by query so we don't depend on its
+  // auto-generated name, then add the per-user one if absent. Idempotent.
+  await sql`
+    DO $$
+    DECLARE c text;
+    BEGIN
+      FOR c IN
+        SELECT conname FROM pg_constraint
+        WHERE conrelid = 'tags'::regclass AND contype = 'u'
+          AND conname <> 'tags_user_id_name_key'
+      LOOP
+        EXECUTE 'ALTER TABLE tags DROP CONSTRAINT ' || quote_ident(c);
+      END LOOP;
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'tags_user_id_name_key'
+      ) THEN
+        ALTER TABLE tags ADD CONSTRAINT tags_user_id_name_key UNIQUE (user_id, name);
+      END IF;
+    END $$
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_tags_user_id ON tags(user_id)`
+
   console.log('✅ Migrations complete')
 }

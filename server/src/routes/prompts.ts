@@ -135,8 +135,16 @@ router.patch('/:id', async (req: Request, res: Response) => {
     })
   }
 
-  // Replace tags if provided
+  // Replace tags if provided. Every tag_id must be one of the caller's own tags.
   if (data.tag_ids !== undefined) {
+    if (data.tag_ids.length > 0) {
+      const owned = await sql<{ id: number }[]>`
+        SELECT id FROM tags WHERE id = ANY(${data.tag_ids}) AND user_id = ${userId}
+      `
+      if (owned.length !== data.tag_ids.length) {
+        return res.status(400).json({ error: 'One or more tags are invalid' })
+      }
+    }
     await sql.begin(async (tx) => {
       await tx`DELETE FROM prompt_tags WHERE prompt_id = ${id}`
       if (data.tag_ids!.length > 0) {

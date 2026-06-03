@@ -1,8 +1,22 @@
 export interface Tag {
   id: number
+  user_id: string
   name: string
   hint: string
   sort_order: number
+}
+
+export interface DefaultTag {
+  id: number
+  name: string
+  hint: string
+  sort_order: number
+}
+
+export interface Profile {
+  id: string
+  is_admin: boolean
+  created_at: string
 }
 
 export interface Variable {

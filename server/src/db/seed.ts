@@ -43,10 +43,12 @@ const PREDEFINED_TAGS = [
   },
 ]
 
-export async function seedTags(): Promise<void> {
-  const [{ c }] = await sql<[{ c: string }]>`SELECT COUNT(*) as c FROM tags`
+// Seeds the admin template (default_tags). Per-user `tags` are created by
+// copying this template at provisioning time, never seeded directly.
+export async function seedDefaultTags(): Promise<void> {
+  const [{ c }] = await sql<[{ c: string }]>`SELECT COUNT(*) as c FROM default_tags`
   if (Number(c) > 0) return
 
-  await sql`INSERT INTO tags ${sql(PREDEFINED_TAGS, 'name', 'hint', 'sort_order')}`
-  console.log('✅ Tags seeded')
+  await sql`INSERT INTO default_tags ${sql(PREDEFINED_TAGS, 'name', 'hint', 'sort_order')}`
+  console.log('✅ Default tags seeded')
 }
