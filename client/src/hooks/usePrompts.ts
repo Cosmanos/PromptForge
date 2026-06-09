@@ -134,7 +134,7 @@ export function useCreatePrompt() {
 export function useUpdatePrompt() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<PromptWithDetails> & { tag_ids?: number[]; variables?: unknown[] } }) =>
+    mutationFn: ({ id, data }: { id: number; data: Parameters<typeof api.prompts.update>[1] }) =>
       api.prompts.update(id, data),
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: ['prompts'] })

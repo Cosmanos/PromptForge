@@ -51,3 +51,128 @@ textarea {
   0%, 100% { opacity: 0.7; }
   50% { opacity: 0; }
 }
+
+/* ---- Prompt editor (ProseMirror) ---- */
+.pf-editor-content.ProseMirror {
+  outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 180px;
+}
+.pf-editor-content.ProseMirror p {
+  margin: 0;
+}
+/* Placeholder shown on the first empty paragraph. */
+.pf-editor-content.ProseMirror p.is-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: rgb(var(--text-tertiary));
+}
+
+/* ---- Inline variables (builder) ---- */
+/* The wrapper is the positioning context for the floating toolbar. */
+.pf-var-wrap {
+  position: relative;
+  display: inline;
+}
+
+/* The highlighted default value, editable in place. box-decoration-break lets
+   the fill + border wrap cleanly across lines instead of forming a rigid pill. */
+.pf-var {
+  display: inline;
+  border-radius: 0.375rem;
+  padding: 0.05em 0.3em;
+  border: 1.5px dashed;
+  outline: none;
+  white-space: pre-wrap;
+  cursor: text;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* Selected/editing: solid outline + a real blinking caret inside. */
+.pf-var[data-active] {
+  border-style: solid;
+}
+
+/* Empty variable: a comfortably clickable dashed tab labeled with its name,
+   so it's easy to hit and identify (a bare slot was too small to select). */
+.pf-var[data-empty] {
+  min-width: 2em;
+  padding: 0.05em 0.5em;
+}
+.pf-var[data-empty]::before {
+  content: attr(data-name);
+  font-style: italic;
+  opacity: 0.6;
+}
+/* Once focused, drop the label so typing the default reads cleanly. */
+.pf-var[data-empty]:focus::before {
+  content: '';
+}
+
+.pf-var-toolbar {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 4px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.5rem;
+  border: 1px solid;
+  background: rgb(var(--surface));
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
+  /* Always lay the toolbar out horizontally at its content width, regardless of
+     the (possibly narrow) variable it's anchored to. */
+  width: max-content;
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+  user-select: none;
+  animation: pf-var-toolbar-in 120ms ease-out;
+}
+
+@keyframes pf-var-toolbar-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pf-var-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.pf-var-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.pf-var-name-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  background: transparent;
+  outline: none;
+  width: 7rem;
+  border-bottom: 1px solid rgb(var(--border));
+}
+
+.pf-var-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1rem;
+  border-radius: 0.25rem;
+  color: rgb(var(--text-secondary));
+}
+.pf-var-btn:hover {
+  color: rgb(var(--text));
+  background: rgb(var(--track));
+}

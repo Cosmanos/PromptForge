@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
@@ -62,7 +63,23 @@ function AuthedApp() {
   return <ProvisionedRoutes />
 }
 
+// Dev-only isolated harness for the inline variable editor, reachable without
+// auth at /var-demo. Code-split so it never lands in the production bundle.
+const VariableEditorDemo = lazy(() => import('@/pages/VariableEditorDemo'))
+
 export default function App() {
+  if (
+    import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    window.location.pathname === '/var-demo'
+  ) {
+    return (
+      <Suspense fallback={<Spinner />}>
+        <VariableEditorDemo />
+      </Suspense>
+    )
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

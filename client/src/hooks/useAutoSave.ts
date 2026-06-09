@@ -1,64 +1,33 @@
 import { useEffect, useRef } from 'react'
 import { api } from '@/lib/api'
-import type { SegmentEditorState } from './useSegmentEditor'
-import { extractVariables } from './useSegmentEditor'
 
-interface AutoSaveOptions {
-  promptId: number | undefined
-  state: SegmentEditorState
-  name: string
-  model: string
-  rewrittenPrompt: string | null
-  activeVersion: 'original' | 'rewritten'
-  tagIds: number[]
-  onSaved?: () => void
-  debounceMs?: number
-}
+type UpdateData = Parameters<typeof api.prompts.update>[1]
 
-export function useAutoSave({
-  promptId,
-  state,
-  name,
-  model,
-  rewrittenPrompt,
-  activeVersion,
-  tagIds,
-  onSaved,
-  debounceMs = 800,
-}: AutoSaveOptions) {
+/**
+ * Debounced auto-save of a partial prompt update. The caller owns exactly the
+ * fields it passes in `data` (so the original and rewritten editors don't
+ * clobber each other). Saves only fire while `enabled` is true and skip when
+ * the serialized payload hasn't changed since the last successful save.
+ */
+export function useAutoSave(
+  promptId: number | undefined,
+  data: UpdateData,
+  enabled: boolean,
+  debounceMs = 800
+) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedRef = useRef<string>('')
+  const payload = JSON.stringify(data)
 
   useEffect(() => {
-    if (!promptId || !state.isDirty) return
-
-    const payload = JSON.stringify({
-      name,
-      model,
-      raw_prompt: state.rawPrompt,
-      rewritten_prompt: rewrittenPrompt,
-      active_version: activeVersion,
-      tag_ids: tagIds,
-      variables: extractVariables(state.segments),
-    })
-
+    if (!promptId || !enabled) return
     if (payload === lastSavedRef.current) return
 
     if (timerRef.current) clearTimeout(timerRef.current)
-
     timerRef.current = setTimeout(async () => {
       try {
-        await api.prompts.update(promptId, {
-          name,
-          model,
-          raw_prompt: state.rawPrompt,
-          rewritten_prompt: rewrittenPrompt ?? undefined,
-          active_version: activeVersion,
-          tag_ids: tagIds,
-          variables: extractVariables(state.segments),
-        })
+        await api.prompts.update(promptId, JSON.parse(payload) as UpdateData)
         lastSavedRef.current = payload
-        onSaved?.()
       } catch (err) {
         console.error('Auto-save failed:', err)
       }
@@ -67,5 +36,5 @@ export function useAutoSave({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [promptId, state.isDirty, state.rawPrompt, name, model, rewrittenPrompt, activeVersion, tagIds, debounceMs, onSaved, state.segments])
+  }, [promptId, enabled, payload, debounceMs])
 }

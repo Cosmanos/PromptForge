@@ -5,21 +5,32 @@ import {
   CheckCircle2,
   Play,
   Wand2,
+  Plus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { TagBar } from '@/components/builder/TagBar'
-import { SegmentEditor } from '@/components/builder/SegmentEditor'
+import { PromptEditor, type PromptEditorHandle } from '@/components/builder/PromptEditor'
 import { VersionToggle } from '@/components/builder/VersionToggle'
 import { TryOutResponse } from '@/components/builder/TryOutResponse'
 import { usePrompt, useTags, useAnalyzePrompt, useRewritePrompt, useUpdatePrompt, useCreatePrompt, useConnections } from '@/hooks/usePrompts'
-import { useSegmentEditor } from '@/hooks/useSegmentEditor'
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { streamSSE } from '@/lib/api'
 import { MODELS, modelInfo, isModelConnected } from '@/lib/models'
 import { ModelSelectorChip } from '@/components/ui/ModelSelectorChip'
+import { VariableStoreProvider, useVariableStore } from '@/lib/variableStore'
 
 export function BuilderPage() {
+  // The variable store is the single source of truth for defaults/colors and is
+  // shared by the original and rewritten editors (spec §1, §7).
+  return (
+    <VariableStoreProvider>
+      <BuilderContent />
+    </VariableStoreProvider>
+  )
+}
+
+function BuilderContent() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const isNew = id == null
@@ -27,7 +38,8 @@ export function BuilderPage() {
     id ? Number(id) : undefined
   )
 
-  const { data: prompt, isLoading } = usePrompt(promptId)
+  const store = useVariableStore()
+  const { data: prompt } = usePrompt(promptId)
   const { data: allTags = [] } = useTags()
   const { data: connections = [] } = useConnections()
   const analyze = useAnalyzePrompt()
@@ -46,19 +58,24 @@ export function BuilderPage() {
   const [hasAnalyzed, setHasAnalyzed] = useState(false)
   const [isRewriteStale, setIsRewriteStale] = useState(false)
 
+  // Editor-derived state
+  const [originalRaw, setOriginalRaw] = useState('')
+  const [originalDirty, setOriginalDirty] = useState(false)
+  const [rewrittenRaw, setRewrittenRaw] = useState('')
+  const [rewrittenDirty, setRewrittenDirty] = useState(false)
+  const [metaDirty, setMetaDirty] = useState(false)
+
+  const originalRef = useRef<PromptEditorHandle>(null)
+  const rewrittenRef = useRef<PromptEditorHandle>(null)
+
   // Try Out state
   const [tryOutContent, setTryOutContent] = useState('')
   const [isTryOutStreaming, setIsTryOutStreaming] = useState(false)
   const [isTryOutStale, setIsTryOutStale] = useState(false)
   const [showTryOut, setShowTryOut] = useState(false)
 
-  // Segment editor for original prompt
-  const [editorState, editorActions] = useSegmentEditor('', [])
-
-  // Segment editor for rewritten prompt (separate)
-  const [rewrittenEditorState, rewrittenEditorActions] = useSegmentEditor('', [])
-
-  // Load prompt data once
+  // Load prompt data once. Seed the variable store before the editors mount so
+  // their inline defaults/colors render from persisted values.
   const [initialized, setInitialized] = useState(isNew)
   useEffect(() => {
     if (prompt && !initialized) {
@@ -67,70 +84,79 @@ export function BuilderPage() {
       setActiveVersion(prompt.active_version)
       setRewrittenPrompt(prompt.rewritten_prompt)
       setSelectedTagIds(prompt.tag_ids)
-      editorActions.loadFromRaw(prompt.raw_prompt, prompt.variables)
-      if (prompt.rewritten_prompt) {
-        rewrittenEditorActions.loadFromRaw(prompt.rewritten_prompt, prompt.variables)
-      }
+      store.loadVariables(prompt.variables)
       setInitialized(true)
     }
   }, [prompt, initialized]) // eslint-disable-line
 
-  // Lazy creation: only create the prompt record when the user starts typing
+  // Lazy creation: only create the prompt record when the user starts working.
   useEffect(() => {
     if (!isNew || promptId || creatingRef.current) return
-    const hasContent = editorState.isDirty || name !== 'Untitled Prompt'
+    const hasContent = originalDirty || metaDirty || name !== 'Untitled Prompt'
     if (!hasContent) return
     creatingRef.current = true
     createPrompt.mutateAsync({}).then((newPrompt) => {
       setPromptId(newPrompt.id)
       window.history.replaceState(null, '', `/build/${newPrompt.id}`)
     })
-  }, [isNew, promptId, editorState.isDirty, name]) // eslint-disable-line
+  }, [isNew, promptId, originalDirty, metaDirty, name]) // eslint-disable-line
 
-  // Auto-save original
-  useAutoSave({
+  // Auto-save original prompt + variables.
+  useAutoSave(
     promptId,
-    state: editorState,
-    name,
-    model,
-    rewrittenPrompt: activeVersion === 'rewritten' ? rewrittenEditorState.rawPrompt : rewrittenPrompt,
-    activeVersion,
-    tagIds: selectedTagIds,
-  })
+    {
+      name,
+      model,
+      raw_prompt: originalRaw,
+      active_version: activeVersion,
+      tag_ids: selectedTagIds,
+      variables: store.variables,
+    },
+    initialized && (originalDirty || metaDirty || store.isDirty)
+  )
 
-  // Auto-save rewritten
-  useAutoSave({
+  // Auto-save rewritten prompt (its own field only — never clobbers raw_prompt).
+  useAutoSave(
     promptId,
-    state: rewrittenEditorState,
-    name,
-    model,
-    rewrittenPrompt: rewrittenEditorState.rawPrompt,
-    activeVersion,
-    tagIds: selectedTagIds,
-  })
+    { rewritten_prompt: rewrittenRaw },
+    initialized && rewrittenPrompt != null && rewrittenDirty
+  )
 
-  function handleOriginalChange(id: string, content: string) {
-    editorActions.updateText(id, content)
-    // Editing original after rewrite marks rewrite as stale
-    if (rewrittenPrompt) setIsRewriteStale(true)
-    // Invalidate try out
-    setIsTryOutStale(true)
+  const handleOriginalChange = useCallback(
+    (raw: string, dirty: boolean) => {
+      setOriginalRaw(raw)
+      if (dirty) {
+        setOriginalDirty(true)
+        setIsRewriteStale((stale) => stale || rewrittenPrompt != null)
+        setIsTryOutStale(true)
+      }
+    },
+    [rewrittenPrompt]
+  )
+
+  const handleRewrittenChange = useCallback((raw: string, dirty: boolean) => {
+    setRewrittenRaw(raw)
+    if (dirty) setRewrittenDirty(true)
+  }, [])
+
+  function handleNameChange(value: string) {
+    setName(value)
+    setMetaDirty(true)
+  }
+
+  function handleModelChange(value: string) {
+    setModel(value)
+    setMetaDirty(true)
   }
 
   async function handleAnalyze() {
     if (!promptId) return
-    // Save first
     await updatePrompt.mutateAsync({
       id: promptId,
-      data: {
-        raw_prompt: editorState.rawPrompt,
-        name,
-        model,
-      },
+      data: { raw_prompt: originalRaw, name, model },
     })
     const result = await analyze.mutateAsync(promptId)
     setSuggestedTagIds(result.suggested_tag_ids)
-    // Auto-select suggested tags
     setSelectedTagIds(result.suggested_tag_ids)
     setHasAnalyzed(true)
   }
@@ -139,10 +165,11 @@ export function BuilderPage() {
     if (!promptId || selectedTagIds.length === 0) return
     const result = await rewrite.mutateAsync({ id: promptId, tag_ids: selectedTagIds })
     setRewrittenPrompt(result.rewritten_prompt)
-    rewrittenEditorActions.loadFromRaw(result.rewritten_prompt, prompt?.variables ?? [])
+    // If the rewritten editor is already mounted (re-rewrite), reset its content;
+    // on first rewrite it mounts fresh with this content via initialRaw.
+    rewrittenRef.current?.loadFromRaw(result.rewritten_prompt)
     setActiveVersion('rewritten')
     setIsRewriteStale(false)
-    // Save rewritten prompt
     await updatePrompt.mutateAsync({
       id: promptId,
       data: {
@@ -157,18 +184,14 @@ export function BuilderPage() {
     setSelectedTagIds((prev) =>
       prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
     )
+    setMetaDirty(true)
   }
 
   const handleTryOut = useCallback(async () => {
     if (!promptId) return
-    // Save latest state first
     await updatePrompt.mutateAsync({
       id: promptId,
-      data: {
-        raw_prompt: editorState.rawPrompt,
-        name,
-        model,
-      },
+      data: { raw_prompt: originalRaw, name, model, variables: store.variables },
     })
     setTryOutContent('')
     setIsTryOutStreaming(true)
@@ -182,10 +205,17 @@ export function BuilderPage() {
       () => setIsTryOutStreaming(false),
       () => setIsTryOutStreaming(false)
     )
-  }, [promptId, editorState.rawPrompt, name, model, updatePrompt])
+  }, [promptId, originalRaw, name, model, store.variables, updatePrompt])
 
   function handleVersionChange(version: 'original' | 'rewritten') {
     setActiveVersion(version)
+    // Rebuild the editor we're switching to so its inline defaults reflect the
+    // latest shared values (defaults edited in the other version, etc.).
+    if (version === 'rewritten') {
+      rewrittenRef.current?.loadFromRaw(rewrittenRaw || rewrittenPrompt || '')
+    } else {
+      originalRef.current?.loadFromRaw(originalRaw)
+    }
     updatePrompt.mutate({ id: promptId!, data: { active_version: version } })
   }
 
@@ -197,16 +227,10 @@ export function BuilderPage() {
     )
   }
 
-  const activeEditorState = activeVersion === 'rewritten' && rewrittenPrompt
-    ? rewrittenEditorState
-    : editorState
-  const activeEditorActions = activeVersion === 'rewritten' && rewrittenPrompt
-    ? rewrittenEditorActions
-    : { ...editorActions, updateText: handleOriginalChange }
+  const showRewritten = rewrittenPrompt != null && activeVersion === 'rewritten'
+  const activeEditorRef = showRewritten ? rewrittenRef : originalRef
 
-  // Gate LLM actions by whether the selected model's provider is connected. The
-  // selector lists connected providers' models; the current model is kept
-  // visible even if its provider was disconnected, so it isn't silently lost.
+  // Gate LLM actions by whether the selected model's provider is connected.
   const connectedProviders = connections.map((c) => c.provider)
   const selectableModels = MODELS.filter((m) => connectedProviders.includes(m.provider))
   const currentInfo = modelInfo(model)
@@ -223,13 +247,13 @@ export function BuilderPage() {
         <div className="max-w-3xl mx-auto px-6 py-3 flex items-center gap-3">
           <Input
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => handleNameChange(e.target.value)}
             className="flex-1 border-0 text-base font-medium focus-visible:ring-0 px-0"
             placeholder="Prompt name..."
           />
           <ModelSelectorChip
             value={model}
-            onChange={setModel}
+            onChange={handleModelChange}
             options={modelOptions}
             connectedProviders={connectedProviders}
           />
@@ -254,12 +278,39 @@ export function BuilderPage() {
           <VersionToggle activeVersion={activeVersion} onChange={handleVersionChange} />
         )}
 
-        {/* Prompt Editor */}
-        <SegmentEditor
-          segments={activeEditorState.segments}
-          actions={activeEditorActions}
-          placeholder="Write your prompt here... Use {{variable}} for dynamic parts."
-        />
+        {/* New-variable control (acts on the visible editor) */}
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            onClick={() => activeEditorRef.current?.newVariable()}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            title="Turn the selection into a variable, or insert a new one"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New variable
+          </button>
+        </div>
+
+        {/* Prompt editors — both mounted so variables stay in sync; inactive hidden. */}
+        <div className={showRewritten ? 'hidden' : undefined}>
+          <PromptEditor
+            ref={originalRef}
+            editorId="original"
+            initialRaw={prompt?.raw_prompt ?? ''}
+            onChange={handleOriginalChange}
+            placeholder="Write your prompt here... Use {{variable}} for dynamic parts."
+          />
+        </div>
+        {rewrittenPrompt != null && (
+          <div className={showRewritten ? undefined : 'hidden'}>
+            <PromptEditor
+              ref={rewrittenRef}
+              editorId="rewritten"
+              initialRaw={rewrittenPrompt}
+              onChange={handleRewrittenChange}
+            />
+          </div>
+        )}
 
         {/* Toolbar */}
         <div className="flex items-center gap-3 pt-2">
