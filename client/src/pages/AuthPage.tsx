@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Hammer, Loader2, Mail } from 'lucide-react'
+import { Flame, Loader2, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
@@ -58,7 +58,7 @@ export function AuthPage() {
       <Shell>
         <div className="text-center space-y-3">
           <Mail className="h-10 w-10 text-primary mx-auto" />
-          <h2 className="text-lg font-semibold">Check your email</h2>
+          <h2 className="text-lg font-medium">Check your email</h2>
           <p className="text-sm text-muted-foreground">
             We sent a confirmation link to <span className="font-medium">{email}</span>. Click it to
             verify your account, then sign in.
@@ -83,7 +83,7 @@ export function AuthPage() {
     <Shell>
       <div className="space-y-5">
         <div className="text-center space-y-1">
-          <h2 className="text-lg font-semibold">
+          <h2 className="text-lg font-medium">
             {mode === 'signin' ? 'Sign in to PromptForge' : 'Create your account'}
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -157,10 +157,10 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
       <div className="flex items-center gap-2 mb-6">
-        <Hammer className="h-6 w-6 text-primary" />
-        <span className="text-xl font-semibold">PromptForge</span>
+        <Flame className="h-6 w-6 text-foreground" />
+        <span className="text-xl font-medium">PromptForge</span>
       </div>
-      <div className="w-full max-w-sm rounded-lg border border-border bg-white p-6 shadow-sm">
+      <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6">
         {children}
       </div>
     </div>

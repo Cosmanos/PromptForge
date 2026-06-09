@@ -1,48 +1,81 @@
 import type { Config } from 'tailwindcss'
 
+// Tokens are defined as space-separated RGB channels on :root (see index.css)
+// and referenced here through rgb(... / <alpha-value>) so Tailwind's opacity
+// modifiers (e.g. bg-primary/90) keep working.
+const t = (name: string) => `rgb(var(${name}) / <alpha-value>)`
+
 export default {
   darkMode: ['class'],
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        border: 'hsl(var(--border))',
-        input: 'hsl(var(--input))',
-        ring: 'hsl(var(--ring))',
-        background: 'hsl(var(--background))',
-        foreground: 'hsl(var(--foreground))',
-        primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))',
+        // ---- Spec tokens ----
+        surface: {
+          DEFAULT: t('--surface'),
+          sidebar: t('--surface-sidebar'),
+          muted: t('--surface-muted'),
         },
-        secondary: {
-          DEFAULT: 'hsl(var(--secondary))',
-          foreground: 'hsl(var(--secondary-foreground))',
+        track: t('--track'),
+        border: {
+          DEFAULT: t('--border'),
+          subtle: t('--border-subtle'),
+        },
+        tertiary: t('--text-tertiary'),
+        success: {
+          DEFAULT: t('--success'),
+          bg: t('--success-bg'),
+        },
+        danger: t('--danger'),
+
+        // ---- Back-compat aliases (existing components) mapped to spec tokens ----
+        background: t('--surface'),
+        foreground: t('--text'),
+        input: t('--border'),
+        ring: t('--text'),
+        card: {
+          DEFAULT: t('--surface'),
+          foreground: t('--text'),
         },
         muted: {
-          DEFAULT: 'hsl(var(--muted))',
-          foreground: 'hsl(var(--muted-foreground))',
+          DEFAULT: t('--surface-muted'),
+          foreground: t('--text-secondary'),
         },
+        // Primary = the spec's dark --accent (primary buttons, selected pills/toggles).
+        primary: {
+          DEFAULT: t('--accent'),
+          foreground: t('--surface'),
+          hover: t('--accent-hover'),
+        },
+        secondary: {
+          DEFAULT: t('--surface'),
+          foreground: t('--text'),
+        },
+        // Tailwind `accent` stays a LIGHT hover surface so existing
+        // hover:bg-accent usages don't turn dark.
         accent: {
-          DEFAULT: 'hsl(var(--accent))',
-          foreground: 'hsl(var(--accent-foreground))',
+          DEFAULT: t('--surface-muted'),
+          foreground: t('--text'),
         },
         destructive: {
-          DEFAULT: 'hsl(var(--destructive))',
-          foreground: 'hsl(var(--destructive-foreground))',
-        },
-        card: {
-          DEFAULT: 'hsl(var(--card))',
-          foreground: 'hsl(var(--card-foreground))',
+          DEFAULT: t('--danger'),
+          foreground: t('--surface'),
         },
       },
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        none: '0',
+        sm: '6px',
+        DEFAULT: '8px',
+        md: '8px',
+        lg: '12px',
+        xl: '12px',
+        '2xl': '16px',
+        full: '999px',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Hanken Grotesk', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
     },
   },

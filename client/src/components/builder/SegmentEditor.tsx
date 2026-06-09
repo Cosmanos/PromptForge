@@ -55,7 +55,7 @@ export function SegmentEditor({ segments, actions, placeholder, disabled }: Segm
   const hasContent = segments.some((s) => s.type !== 'text' || s.content.trim())
 
   return (
-    <div className="min-h-[200px] w-full rounded-lg border border-input bg-white p-4 text-sm focus-within:ring-1 focus-within:ring-ring">
+    <div className="min-h-[200px] w-full rounded-lg border border-border bg-surface p-4 text-sm focus-within:ring-1 focus-within:ring-ring">
       {segments.map((seg, i) => {
         if (seg.type === 'text') {
           return (

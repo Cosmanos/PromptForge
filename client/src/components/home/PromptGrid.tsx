@@ -16,14 +16,14 @@ export function PromptGrid({ prompts, onNew, onExecute, onEdit, onDelete }: Prom
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {/* New Prompt Card */}
       <Card
-        className="border-dashed hover:border-primary/50 hover:shadow-md cursor-pointer transition-all group"
+        className="border-dashed hover:border-foreground/40 cursor-pointer transition-colors group"
         onClick={onNew}
       >
         <CardContent className="flex flex-col items-center justify-center h-full min-h-[160px] gap-3 p-6">
-          <div className="h-10 w-10 rounded-full border-2 border-dashed border-muted-foreground/40 group-hover:border-primary/50 flex items-center justify-center transition-colors">
-            <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+          <div className="h-10 w-10 rounded-full border border-dashed border-tertiary group-hover:border-foreground flex items-center justify-center transition-colors">
+            <Plus className="h-5 w-5 text-tertiary group-hover:text-foreground transition-colors" />
           </div>
-          <p className="text-sm text-muted-foreground group-hover:text-primary font-medium transition-colors">
+          <p className="text-sm text-muted-foreground group-hover:text-foreground font-medium transition-colors">
             New Prompt
           </p>
         </CardContent>

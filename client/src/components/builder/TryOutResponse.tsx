@@ -28,7 +28,7 @@ export function TryOutResponse({ content, isStreaming, isStale }: TryOutResponse
         </span>
         {!isStreaming && content && (
           <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleCopy}>
-            {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
           </Button>
         )}
       </div>

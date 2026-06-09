@@ -25,7 +25,7 @@ export function ChatWindow({ messages, isLoading, onSendMessage, disabled }: Cha
         ))}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-white border border-border rounded-2xl rounded-tl-sm px-4 py-3">
+            <div className="bg-surface border border-border rounded-2xl rounded-tl-sm px-4 py-3">
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             </div>
           </div>

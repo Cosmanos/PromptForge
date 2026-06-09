@@ -88,15 +88,15 @@ export function ExecutionPage() {
       : prompt.raw_prompt
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-full bg-surface flex flex-col">
       {/* Header */}
-      <header className="border-b border-border bg-white sticky top-0 z-10">
+      <header className="border-b border-border bg-surface sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/use')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-base font-semibold truncate">{prompt.name}</h1>
+            <h1 className="text-base font-medium truncate">{prompt.name}</h1>
             <p className="text-xs text-muted-foreground">
               {prompt.active_version === 'rewritten' ? 'Rewritten prompt' : 'Original prompt'} · {prompt.model}
             </p>
@@ -116,7 +116,7 @@ export function ExecutionPage() {
       <div className="flex flex-1 min-h-0 max-w-7xl mx-auto w-full">
         {/* Sidebar */}
         {showSidebar && (
-          <aside className="w-64 border-r border-border bg-white shrink-0 overflow-y-auto">
+          <aside className="w-64 border-r border-border bg-surface shrink-0 overflow-y-auto">
             <div className="p-3 border-b border-border">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Run History
@@ -134,17 +134,17 @@ export function ExecutionPage() {
         <main className="flex-1 min-w-0 flex flex-col">
           {!hasExecuted ? (
             <div className="flex-1 overflow-y-auto p-8 max-w-2xl mx-auto w-full">
-              <h2 className="text-xl font-semibold mb-1">Run Prompt</h2>
+              <h2 className="text-xl font-medium mb-1">Run Prompt</h2>
               <p className="text-sm text-muted-foreground mb-6">
                 Fill in the variables below, then execute.
               </p>
               {!modelConnected && (
-                <div className="mb-6 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <div className="mb-6 rounded-md border border-border bg-surface-muted px-4 py-3 text-sm text-muted-foreground">
                   No key connected for this prompt's model ({prompt.model}).{' '}
                   <button
                     type="button"
                     onClick={() => navigate('/settings')}
-                    className="font-medium underline underline-offset-2"
+                    className="font-medium text-foreground underline underline-offset-2"
                   >
                     Connect a model
                   </button>{' '}

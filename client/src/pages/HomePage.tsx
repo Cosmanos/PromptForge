@@ -1,10 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Hammer } from 'lucide-react'
 import { SearchBar } from '@/components/home/SearchBar'
 import { PromptGrid } from '@/components/home/PromptGrid'
-import { AccountMenu } from '@/components/AccountMenu'
-import { OnboardingConnect } from '@/components/OnboardingConnect'
 import { usePromptList, useDeletePrompt } from '@/hooks/usePrompts'
 
 export function HomePage() {
@@ -19,7 +16,7 @@ export function HomePage() {
   )
 
   function handleNew() {
-    navigate('/builder/new')
+    navigate('/build')
   }
 
   async function handleDelete(id: number) {
@@ -28,22 +25,11 @@ export function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <OnboardingConnect />
-      <header className="border-b border-border bg-white sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-3">
-          <Hammer className="h-5 w-5 text-primary" />
-          <h1 className="text-lg font-semibold">PromptForge</h1>
-          <div className="ml-auto">
-            <AccountMenu />
-          </div>
-        </div>
-      </header>
-
+    <div className="min-h-full bg-surface">
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-semibold">My Prompts</h2>
+            <h2 className="text-lg font-medium">My Prompts</h2>
             <p className="text-sm text-muted-foreground mt-1">
               {prompts.length} prompt{prompts.length !== 1 ? 's' : ''}
             </p>
@@ -54,15 +40,15 @@ export function HomePage() {
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-40 rounded-lg border bg-muted/30 animate-pulse" />
+              <div key={i} className="h-40 rounded-lg border border-border bg-surface-muted animate-pulse" />
             ))}
           </div>
         ) : (
           <PromptGrid
             prompts={filtered}
             onNew={handleNew}
-            onExecute={(id) => navigate(`/execute/${id}`)}
-            onEdit={(id) => navigate(`/builder/${id}`)}
+            onExecute={(id) => navigate(`/use/${id}/run`)}
+            onEdit={(id) => navigate(`/build/${id}`)}
             onDelete={handleDelete}
           />
         )}

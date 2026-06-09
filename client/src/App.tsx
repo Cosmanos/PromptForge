@@ -1,9 +1,10 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { queryClient } from '@/lib/queryClient'
 import { AuthProvider, useAuth } from '@/lib/auth'
 import { useMe } from '@/hooks/usePrompts'
+import { AppShell } from '@/components/shell/AppShell'
 import { AuthPage } from '@/pages/AuthPage'
 import { HomePage } from '@/pages/HomePage'
 import { BuilderPage } from '@/pages/BuilderPage'
@@ -18,6 +19,17 @@ function Spinner() {
   )
 }
 
+// Remount the builder when switching prompts so it re-seeds from the param.
+// For an existing prompt, key on the id (stable across re-renders). For a new
+// prompt (no id), key on location.key so each "New prompt" navigation forces a
+// fresh editor — even after a lazy-create replaceState left the router on
+// /build — without remounting mid-typing (replaceState doesn't change the key).
+function BuilderRoute() {
+  const { id } = useParams<{ id: string }>()
+  const location = useLocation()
+  return <BuilderPage key={id ?? location.key} />
+}
+
 // Renders once /api/me has resolved, which provisions the user (profile + tag
 // copy) before any tag query fires — avoiding an empty-tags first paint.
 function ProvisionedRoutes() {
@@ -28,10 +40,14 @@ function ProvisionedRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/builder/:id" element={<BuilderPage />} />
-        <Route path="/execute/:id" element={<ExecutionPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route element={<AppShell />}>
+          <Route path="/build" element={<BuilderRoute />} />
+          <Route path="/build/:id" element={<BuilderRoute />} />
+          <Route path="/use" element={<HomePage />} />
+          <Route path="/use/:id/run" element={<ExecutionPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/build" replace />} />
       </Routes>
     </BrowserRouter>
   )

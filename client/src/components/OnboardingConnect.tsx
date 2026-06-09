@@ -30,10 +30,10 @@ export function OnboardingConnect() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+      <div className="w-full max-w-lg rounded-lg border border-border bg-surface">
         <div className="flex items-start justify-between p-6 pb-3">
           <div>
-            <h2 className="text-lg font-semibold">Connect a model</h2>
+            <h2 className="text-lg font-medium">Connect a model</h2>
             <p className="text-sm text-muted-foreground mt-1">
               PromptForge runs on your own provider keys. Add at least one to start analyzing,
               rewriting, and running prompts. You can do this later in Settings.

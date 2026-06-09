@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft,
   Loader2,
   CheckCircle2,
   Play,
@@ -18,13 +17,14 @@ import { useSegmentEditor } from '@/hooks/useSegmentEditor'
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { streamSSE } from '@/lib/api'
 import { MODELS, modelInfo, isModelConnected } from '@/lib/models'
+import { ModelSelectorChip } from '@/components/ui/ModelSelectorChip'
 
 export function BuilderPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const isNew = id === 'new'
+  const isNew = id == null
   const [promptId, setPromptId] = useState<number | undefined>(
-    isNew ? undefined : (id ? Number(id) : undefined)
+    id ? Number(id) : undefined
   )
 
   const { data: prompt, isLoading } = usePrompt(promptId)
@@ -83,7 +83,7 @@ export function BuilderPage() {
     creatingRef.current = true
     createPrompt.mutateAsync({}).then((newPrompt) => {
       setPromptId(newPrompt.id)
-      window.history.replaceState(null, '', `/builder/${newPrompt.id}`)
+      window.history.replaceState(null, '', `/build/${newPrompt.id}`)
     })
   }, [isNew, promptId, editorState.isDirty, name]) // eslint-disable-line
 
@@ -217,31 +217,22 @@ export function BuilderPage() {
   const modelConnected = isModelConnected(model, connectedProviders)
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className="h-full bg-surface flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="border-b border-border bg-white shrink-0 z-10">
+      <header className="border-b border-border bg-surface shrink-0 z-10">
         <div className="max-w-3xl mx-auto px-6 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="flex-1 border-0 shadow-none text-base font-semibold focus-visible:ring-0 px-0"
+            className="flex-1 border-0 text-base font-medium focus-visible:ring-0 px-0"
             placeholder="Prompt name..."
           />
-          <select
+          <ModelSelectorChip
             value={model}
-            onChange={(e) => setModel(e.target.value)}
-            className="text-xs border border-input rounded-md px-2 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            {modelOptions.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.label}
-                {connectedProviders.includes(m.provider) ? '' : ' (not connected)'}
-              </option>
-            ))}
-          </select>
+            onChange={setModel}
+            options={modelOptions}
+            connectedProviders={connectedProviders}
+          />
         </div>
       </header>
 
@@ -281,7 +272,7 @@ export function BuilderPage() {
             {analyze.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : hasAnalyzed ? (
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <CheckCircle2 className="h-4 w-4 text-success" />
             ) : (
               <Wand2 className="h-4 w-4" />
             )}

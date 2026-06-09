@@ -239,7 +239,7 @@ export function VariableForm({ variables, rawPrompt, onExecute, isLoading, disab
           Execute
         </Button>
         <Button variant="outline" onClick={handleCopy} className="gap-2">
-          {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+          {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
           {copied ? 'Copied!' : 'Copy Prompt'}
         </Button>
       </div>

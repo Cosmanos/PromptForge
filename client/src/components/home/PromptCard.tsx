@@ -14,9 +14,9 @@ export function PromptCard({ prompt, onExecute, onEdit, onDelete }: PromptCardPr
   const updated = new Date(prompt.updated_at).toLocaleDateString()
 
   return (
-    <Card className="hover:shadow-md transition-shadow group">
+    <Card className="hover:border-foreground/20 transition-colors group">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base truncate">{prompt.name}</CardTitle>
+        <CardTitle className="text-base font-medium truncate">{prompt.name}</CardTitle>
         <p className="text-xs text-muted-foreground">{updated}</p>
       </CardHeader>
       <CardContent className="pt-0">
@@ -27,7 +27,7 @@ export function PromptCard({ prompt, onExecute, onEdit, onDelete }: PromptCardPr
               {prompt.variable_count} variable{prompt.variable_count !== 1 ? 's' : ''}
             </span>
           )}
-          <span className="ml-auto text-xs font-mono bg-muted px-1.5 py-0.5 rounded">
+          <span className="ml-auto text-[11px] font-mono bg-track text-muted-foreground px-1.5 py-0.5 rounded-md">
             {prompt.model}
           </span>
         </div>

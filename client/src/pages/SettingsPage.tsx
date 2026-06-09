@@ -31,13 +31,13 @@ export function SettingsPage() {
   const deleteDefault = useDeleteDefaultTag()
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-white sticky top-0 z-10">
+    <div className="min-h-full bg-surface">
+      <header className="border-b border-border bg-surface sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/build')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-lg font-semibold">Settings</h1>
+          <h1 className="text-lg font-medium">Settings</h1>
         </div>
       </header>
 
@@ -57,9 +57,9 @@ export function SettingsPage() {
 
         {isAdmin && (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-amber-700">
+            <div className="flex items-center gap-2 text-muted-foreground">
               <Shield className="h-4 w-4" />
-              <span className="text-xs font-medium uppercase tracking-wide">Admin</span>
+              <span className="text-[11px] font-medium uppercase tracking-[0.05em]">Admin</span>
             </div>
             <TagManager
               title="Default Tags (template)"

@@ -20,7 +20,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   }
 
   return (
-    <div className="flex gap-2 border border-input rounded-xl p-3 bg-white focus-within:ring-1 focus-within:ring-ring">
+    <div className="flex gap-2 border border-border rounded-xl p-3 bg-surface focus-within:ring-1 focus-within:ring-ring">
       <textarea
         ref={textareaRef}
         value={value}
