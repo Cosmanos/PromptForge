@@ -94,9 +94,10 @@ interface VariableFormProps {
   rawPrompt: string
   onExecute: (compiledPrompt: string, variableValues: Record<string, string>) => void
   isLoading?: boolean
+  disabled?: boolean
 }
 
-export function VariableForm({ variables, rawPrompt, onExecute, isLoading }: VariableFormProps) {
+export function VariableForm({ variables, rawPrompt, onExecute, isLoading, disabled }: VariableFormProps) {
   const [values, setValues] = useState<Record<string, string>>(
     Object.fromEntries(variables.map((v) => [v.name, v.default_value]))
   )
@@ -233,7 +234,7 @@ export function VariableForm({ variables, rawPrompt, onExecute, isLoading }: Var
       )}
 
       <div className="flex gap-3 pt-2">
-        <Button onClick={() => onExecute(getCompiled(), values)} disabled={isLoading} className="flex-1 gap-2">
+        <Button onClick={() => onExecute(getCompiled(), values)} disabled={isLoading || disabled} className="flex-1 gap-2">
           <Play className="h-4 w-4" />
           Execute
         </Button>

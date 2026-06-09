@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TagManager } from '@/components/settings/TagManager'
+import { ModelConnections } from '@/components/settings/ModelConnections'
 import {
   useMe,
   useTags,
@@ -41,6 +42,8 @@ export function SettingsPage() {
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-8 space-y-10">
+        <ModelConnections />
+
         <TagManager
           title="My Tags"
           description="Tags shape how your prompts are rewritten. Edit, add, or remove them freely."

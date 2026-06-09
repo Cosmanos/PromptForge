@@ -7,9 +7,10 @@ interface ChatWindowProps {
   messages: Array<{ role: 'user' | 'assistant'; content: string; id?: number }>
   isLoading: boolean
   onSendMessage: (content: string) => void
+  disabled?: boolean
 }
 
-export function ChatWindow({ messages, isLoading, onSendMessage }: ChatWindowProps) {
+export function ChatWindow({ messages, isLoading, onSendMessage, disabled }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -32,7 +33,7 @@ export function ChatWindow({ messages, isLoading, onSendMessage }: ChatWindowPro
         <div ref={bottomRef} />
       </div>
       <div className="p-4 border-t border-border shrink-0">
-        <ChatInput onSend={onSendMessage} disabled={isLoading} />
+        <ChatInput onSend={onSendMessage} disabled={isLoading || disabled} />
       </div>
     </div>
   )

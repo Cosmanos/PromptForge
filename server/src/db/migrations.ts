@@ -138,5 +138,25 @@ export async function runMigrations(): Promise<void> {
   `
   await sql`CREATE INDEX IF NOT EXISTS idx_tags_user_id ON tags(user_id)`
 
+  // ---- Part 4: per-user encrypted provider API keys ----
+  // One key per user per provider. The plaintext key never lands here: only the
+  // AES-256-GCM ciphertext + iv + auth_tag, plus last4 for display. Decryption
+  // happens server-side at call time only. UNIQUE(user_id, provider) makes
+  // "replace a key" a clean upsert.
+  await sql`
+    CREATE TABLE IF NOT EXISTS provider_credentials (
+      id         BIGSERIAL PRIMARY KEY,
+      user_id    UUID NOT NULL,
+      provider   TEXT NOT NULL CHECK (provider IN ('anthropic', 'openai')),
+      ciphertext TEXT NOT NULL,
+      iv         TEXT NOT NULL,
+      auth_tag   TEXT NOT NULL,
+      last4      TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (user_id, provider)
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_provider_credentials_user_id ON provider_credentials(user_id)`
+
   console.log('✅ Migrations complete')
 }

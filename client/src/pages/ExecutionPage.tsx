@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button'
 import { VariableForm } from '@/components/execution/VariableForm'
 import { ChatWindow } from '@/components/execution/ChatWindow'
 import { HistorySidebar } from '@/components/execution/HistorySidebar'
-import { usePrompt } from '@/hooks/usePrompts'
+import { usePrompt, useConnections } from '@/hooks/usePrompts'
 import { api } from '@/lib/api'
+import { isModelConnected } from '@/lib/models'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 export function ExecutionPage() {
@@ -16,6 +17,7 @@ export function ExecutionPage() {
   const qc = useQueryClient()
 
   const { data: prompt, isLoading: promptLoading } = usePrompt(promptId)
+  const { data: connections = [] } = useConnections()
 
   const { data: sessions = [] } = useQuery({
     queryKey: ['sessions', promptId],
@@ -75,6 +77,11 @@ export function ExecutionPage() {
 
   if (!prompt) return null
 
+  const modelConnected = isModelConnected(
+    prompt.model,
+    connections.map((c) => c.provider)
+  )
+
   const activePromptText =
     prompt.active_version === 'rewritten' && prompt.rewritten_prompt
       ? prompt.rewritten_prompt
@@ -131,11 +138,25 @@ export function ExecutionPage() {
               <p className="text-sm text-muted-foreground mb-6">
                 Fill in the variables below, then execute.
               </p>
+              {!modelConnected && (
+                <div className="mb-6 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  No key connected for this prompt's model ({prompt.model}).{' '}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/settings')}
+                    className="font-medium underline underline-offset-2"
+                  >
+                    Connect a model
+                  </button>{' '}
+                  to run it.
+                </div>
+              )}
               <VariableForm
                 variables={prompt.variables}
                 rawPrompt={activePromptText}
                 onExecute={handleExecute}
                 isLoading={isLoading}
+                disabled={!modelConnected}
               />
             </div>
           ) : (
@@ -143,6 +164,7 @@ export function ExecutionPage() {
               messages={messages}
               isLoading={isLoading}
               onSendMessage={handleSendMessage}
+              disabled={!modelConnected}
             />
           )}
         </main>

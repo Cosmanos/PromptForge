@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import sql from '../db/database'
-import { streamToResponse } from '../services/openai'
+import { streamToResponse } from '../services/llm'
+import { resolveKeyForModel } from '../services/credentials'
 import { compilePrompt } from '../services/promptBuilder'
 import { Prompt, Variable } from '../types'
 
@@ -12,6 +13,9 @@ router.post('/', async (req: Request, res: Response) => {
     SELECT * FROM prompts WHERE id = ${id} AND user_id = ${req.userId!}
   `
   if (!prompt) return res.status(404).json({ error: 'Prompt not found' })
+
+  const resolved = await resolveKeyForModel(req.userId!, prompt.model)
+  if (!resolved.ok) return res.status(resolved.status).json(resolved.body)
 
   const variables = await sql<Variable[]>`SELECT * FROM variables WHERE prompt_id = ${id}`
 
@@ -28,6 +32,7 @@ router.post('/', async (req: Request, res: Response) => {
   const compiled = compilePrompt(activePrompt, variableValues)
 
   await streamToResponse(
+    resolved.key,
     [{ role: 'user', content: compiled }],
     prompt.model,
     res

@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express'
 import { z } from 'zod'
 import sql from '../db/database'
-import { callJSON } from '../services/openai'
+import { callJSON } from '../services/llm'
+import { resolveKeyForModel } from '../services/credentials'
 import { getTagsByIds, buildTagHintsForRewrite } from '../services/tagService'
 import { Prompt } from '../types'
 
@@ -20,6 +21,9 @@ router.post('/', async (req: Request, res: Response) => {
 
   const parsed = RewriteSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
+
+  const resolved = await resolveKeyForModel(req.userId!, prompt.model)
+  if (!resolved.ok) return res.status(resolved.status).json(resolved.body)
 
   const tags = await getTagsByIds(parsed.data.tag_ids, req.userId!)
   if (tags.length === 0) return res.status(400).json({ error: 'No valid tags found' })
@@ -44,6 +48,7 @@ Response format:
 
   try {
     const result = await callJSON<{ rewritten_prompt: string }>(
+      resolved.key,
       systemPrompt,
       `Original prompt:\n"""\n${prompt.raw_prompt}\n"""`,
       prompt.model

@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express'
 import { z } from 'zod'
 import sql from '../db/database'
-import { callChat } from '../services/openai'
+import { callChat, ChatMessage } from '../services/llm'
+import { resolveKeyForModel } from '../services/credentials'
 import { compilePrompt } from '../services/promptBuilder'
 import { Prompt, Variable, Session, Message } from '../types'
-import OpenAI from 'openai'
 
 const router = Router()
 
@@ -31,6 +31,11 @@ router.post('/', async (req: Request, res: Response) => {
   `
   if (!prompt) return res.status(404).json({ error: 'Prompt not found' })
 
+  // Resolve the user's key before any DB write so a missing key can't leave an
+  // orphan session with no reply.
+  const resolved = await resolveKeyForModel(userId, prompt.model)
+  if (!resolved.ok) return res.status(resolved.status).json(resolved.body)
+
   const variables = await sql<Variable[]>`SELECT * FROM variables WHERE prompt_id = ${prompt_id}`
 
   const merged: Record<string, string> = {}
@@ -54,7 +59,7 @@ router.post('/', async (req: Request, res: Response) => {
 
   await sql`INSERT INTO messages (session_id, role, content) VALUES (${sid}, 'user', ${compiled})`
 
-  const reply = await callChat([{ role: 'user', content: compiled }], prompt.model)
+  const reply = await callChat(resolved.key, [{ role: 'user', content: compiled }], prompt.model)
 
   await sql`INSERT INTO messages (session_id, role, content) VALUES (${sid}, 'assistant', ${reply})`
 
@@ -74,18 +79,22 @@ router.post('/:id/messages', async (req: Request, res: Response) => {
 
   const { content } = parsed.data
 
+  // Resolve the key (off session.model) before writing the new user message.
+  const resolved = await resolveKeyForModel(req.userId!, session.model)
+  if (!resolved.ok) return res.status(resolved.status).json(resolved.body)
+
   const priorMessages = await sql<Message[]>`
     SELECT * FROM messages WHERE session_id = ${id} ORDER BY created_at
   `
 
   await sql`INSERT INTO messages (session_id, role, content) VALUES (${id}, 'user', ${content})`
 
-  const messagesForLLM: OpenAI.Chat.ChatCompletionMessageParam[] = [
+  const messagesForLLM: ChatMessage[] = [
     ...priorMessages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
     { role: 'user', content },
   ]
 
-  const reply = await callChat(messagesForLLM, session.model)
+  const reply = await callChat(resolved.key, messagesForLLM, session.model)
 
   await sql`INSERT INTO messages (session_id, role, content) VALUES (${id}, 'assistant', ${reply})`
 

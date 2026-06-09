@@ -13,12 +13,11 @@ import { TagBar } from '@/components/builder/TagBar'
 import { SegmentEditor } from '@/components/builder/SegmentEditor'
 import { VersionToggle } from '@/components/builder/VersionToggle'
 import { TryOutResponse } from '@/components/builder/TryOutResponse'
-import { usePrompt, useTags, useAnalyzePrompt, useRewritePrompt, useUpdatePrompt, useCreatePrompt } from '@/hooks/usePrompts'
+import { usePrompt, useTags, useAnalyzePrompt, useRewritePrompt, useUpdatePrompt, useCreatePrompt, useConnections } from '@/hooks/usePrompts'
 import { useSegmentEditor } from '@/hooks/useSegmentEditor'
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { streamSSE } from '@/lib/api'
-
-const MODELS = ['gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo']
+import { MODELS, modelInfo, isModelConnected } from '@/lib/models'
 
 export function BuilderPage() {
   const { id } = useParams<{ id: string }>()
@@ -30,6 +29,7 @@ export function BuilderPage() {
 
   const { data: prompt, isLoading } = usePrompt(promptId)
   const { data: allTags = [] } = useTags()
+  const { data: connections = [] } = useConnections()
   const analyze = useAnalyzePrompt()
   const rewrite = useRewritePrompt()
   const updatePrompt = useUpdatePrompt()
@@ -204,6 +204,18 @@ export function BuilderPage() {
     ? rewrittenEditorActions
     : { ...editorActions, updateText: handleOriginalChange }
 
+  // Gate LLM actions by whether the selected model's provider is connected. The
+  // selector lists connected providers' models; the current model is kept
+  // visible even if its provider was disconnected, so it isn't silently lost.
+  const connectedProviders = connections.map((c) => c.provider)
+  const selectableModels = MODELS.filter((m) => connectedProviders.includes(m.provider))
+  const currentInfo = modelInfo(model)
+  const modelOptions =
+    currentInfo && !selectableModels.some((m) => m.id === model)
+      ? [currentInfo, ...selectableModels]
+      : selectableModels
+  const modelConnected = isModelConnected(model, connectedProviders)
+
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header */}
@@ -223,8 +235,11 @@ export function BuilderPage() {
             onChange={(e) => setModel(e.target.value)}
             className="text-xs border border-input rounded-md px-2 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
           >
-            {MODELS.map((m) => (
-              <option key={m} value={m}>{m}</option>
+            {modelOptions.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+                {connectedProviders.includes(m.provider) ? '' : ' (not connected)'}
+              </option>
             ))}
           </select>
         </div>
@@ -256,11 +271,11 @@ export function BuilderPage() {
         />
 
         {/* Toolbar */}
-        <div className="flex gap-3 pt-2">
+        <div className="flex items-center gap-3 pt-2">
           <Button
             variant="outline"
             onClick={handleAnalyze}
-            disabled={analyze.isPending}
+            disabled={analyze.isPending || !modelConnected}
             className="gap-2"
           >
             {analyze.isPending ? (
@@ -275,7 +290,7 @@ export function BuilderPage() {
           <Button
             variant="outline"
             onClick={handleTryOut}
-            disabled={isTryOutStreaming}
+            disabled={isTryOutStreaming || !modelConnected}
             className="gap-2"
           >
             {isTryOutStreaming ? (
@@ -285,6 +300,15 @@ export function BuilderPage() {
             )}
             Try Out
           </Button>
+          {!modelConnected && (
+            <button
+              type="button"
+              onClick={() => navigate('/settings')}
+              className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+              Connect a model
+            </button>
+          )}
         </div>
 
         {/* Try Out Response */}

@@ -4,6 +4,7 @@ import { Hammer } from 'lucide-react'
 import { SearchBar } from '@/components/home/SearchBar'
 import { PromptGrid } from '@/components/home/PromptGrid'
 import { AccountMenu } from '@/components/AccountMenu'
+import { OnboardingConnect } from '@/components/OnboardingConnect'
 import { usePromptList, useDeletePrompt } from '@/hooks/usePrompts'
 
 export function HomePage() {
@@ -28,6 +29,7 @@ export function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <OnboardingConnect />
       <header className="border-b border-border bg-white sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-3">
           <Hammer className="h-5 w-5 text-primary" />

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { PromptWithDetails } from '@/types'
+import type { Provider } from '@/lib/models'
 
 export function usePromptList() {
   return useQuery({
@@ -22,6 +23,33 @@ export function useMe() {
     queryKey: ['me'],
     queryFn: () => api.me(),
     staleTime: Infinity,
+  })
+}
+
+// ---- Provider key connections ----
+
+export function useConnections() {
+  return useQuery({
+    queryKey: ['connections'],
+    queryFn: () => api.credentials.list(),
+    staleTime: Infinity,
+  })
+}
+
+export function useSaveKey() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ provider, key }: { provider: Provider; key: string }) =>
+      api.credentials.save(provider, key),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['connections'] }),
+  })
+}
+
+export function useDeleteKey() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (provider: Provider) => api.credentials.remove(provider),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['connections'] }),
   })
 }
 

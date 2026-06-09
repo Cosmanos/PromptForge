@@ -4,9 +4,11 @@ import type {
   Tag,
   DefaultTag,
   Me,
+  Connection,
   SessionListItem,
   SessionWithMessages,
 } from '@/types'
+import type { Provider } from '@/lib/models'
 
 type TagInput = { name: string; hint: string; sort_order?: number }
 import { supabase } from '@/lib/supabase'
@@ -59,6 +61,17 @@ export const api = {
   },
 
   me: () => req<Me>('/me'),
+
+  credentials: {
+    list: () => req<Connection[]>('/credentials'),
+    save: (provider: Provider, key: string) =>
+      req<Connection>(`/credentials/${provider}`, {
+        method: 'PUT',
+        body: JSON.stringify({ key }),
+      }),
+    remove: (provider: Provider) =>
+      req<void>(`/credentials/${provider}`, { method: 'DELETE' }),
+  },
 
   tags: {
     list: () => req<Tag[]>('/tags'),

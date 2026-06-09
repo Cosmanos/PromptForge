@@ -23,6 +23,13 @@ export interface Me {
   is_admin: boolean
 }
 
+// A connected provider key — never includes the key itself, only last4.
+export interface Connection {
+  provider: 'anthropic' | 'openai'
+  last4: string
+  created_at: string
+}
+
 export interface Variable {
   id: number
   prompt_id: number

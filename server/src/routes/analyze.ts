@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import sql from '../db/database'
-import { callJSON } from '../services/openai'
+import { callJSON } from '../services/llm'
+import { resolveKeyForModel } from '../services/credentials'
 import { getAllTags, buildTagListForPrompt } from '../services/tagService'
 import { Prompt } from '../types'
 
@@ -12,6 +13,9 @@ router.post('/', async (req: Request, res: Response) => {
     SELECT * FROM prompts WHERE id = ${id} AND user_id = ${req.userId!}
   `
   if (!prompt) return res.status(404).json({ error: 'Prompt not found' })
+
+  const resolved = await resolveKeyForModel(req.userId!, prompt.model)
+  if (!resolved.ok) return res.status(resolved.status).json(resolved.body)
 
   const tags = await getAllTags(req.userId!)
   const tagList = buildTagListForPrompt(tags)
@@ -31,9 +35,10 @@ Response format:
 
   try {
     const result = await callJSON<{ suggested_tag_ids: number[] }>(
+      resolved.key,
       systemPrompt,
       `Prompt to analyze:\n"""\n${prompt.raw_prompt}\n"""`,
-      'gpt-4o'
+      prompt.model
     )
     res.json(result)
   } catch (err) {

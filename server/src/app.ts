@@ -13,6 +13,7 @@ import tryoutRouter from './routes/tryout'
 import sessionsRouter from './routes/sessions'
 import meRouter from './routes/me'
 import adminDefaultTagsRouter from './routes/adminDefaultTags'
+import credentialsRouter from './routes/credentials'
 import { requireAuth } from './middleware/auth'
 
 const app = express()
@@ -26,6 +27,7 @@ app.use(express.json())
 app.use('/api', requireAuth)
 
 app.use('/api/me', meRouter)
+app.use('/api/credentials', credentialsRouter)
 app.use('/api/admin/default-tags', adminDefaultTagsRouter)
 app.use('/api/tags', tagsRouter)
 app.use('/api/prompts', promptsRouter)
