@@ -92,7 +92,7 @@ export function ExecutionPage() {
       {/* Header */}
       <header className="border-b border-border bg-surface sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/use')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/prompts')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1 min-w-0">

@@ -158,5 +158,42 @@ export async function runMigrations(): Promise<void> {
   `
   await sql`CREATE INDEX IF NOT EXISTS idx_provider_credentials_user_id ON provider_credentials(user_id)`
 
+  // ---- Part 5: tag rewrite instructions + counter-tags ----
+  // `hint` keeps holding the applies-when text (the UI maps "Applies when" to
+  // it); rewrite_instructions is what Rewrite weaves into the prompt.
+  await sql`ALTER TABLE tags         ADD COLUMN IF NOT EXISTS rewrite_instructions TEXT`
+  await sql`ALTER TABLE default_tags ADD COLUMN IF NOT EXISTS rewrite_instructions TEXT`
+
+  // One-time backfill: rows that predate the split used `hint` as the rewrite
+  // text, so seed the new column from it. New rows always set it explicitly.
+  await sql`UPDATE tags         SET rewrite_instructions = hint WHERE rewrite_instructions IS NULL`
+  await sql`UPDATE default_tags SET rewrite_instructions = hint WHERE rewrite_instructions IS NULL`
+  await sql`ALTER TABLE tags         ALTER COLUMN rewrite_instructions SET DEFAULT ''`
+  await sql`ALTER TABLE tags         ALTER COLUMN rewrite_instructions SET NOT NULL`
+  await sql`ALTER TABLE default_tags ALTER COLUMN rewrite_instructions SET DEFAULT ''`
+  await sql`ALTER TABLE default_tags ALTER COLUMN rewrite_instructions SET NOT NULL`
+
+  // Counter-tag pairs. Bidirectional but stored once per pair, in canonical
+  // (lower id first) order — the CHECK makes the mirror row unrepresentable.
+  // Reads match either column. Deleting a tag cascades its pairs away.
+  await sql`
+    CREATE TABLE IF NOT EXISTS tag_counter_tags (
+      tag_id         BIGINT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      counter_tag_id BIGINT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      PRIMARY KEY (tag_id, counter_tag_id),
+      CHECK (tag_id < counter_tag_id)
+    )
+  `
+  await sql`
+    CREATE TABLE IF NOT EXISTS default_tag_counter_tags (
+      tag_id         BIGINT NOT NULL REFERENCES default_tags(id) ON DELETE CASCADE,
+      counter_tag_id BIGINT NOT NULL REFERENCES default_tags(id) ON DELETE CASCADE,
+      PRIMARY KEY (tag_id, counter_tag_id),
+      CHECK (tag_id < counter_tag_id)
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_tag_counter_tags_counter ON tag_counter_tags(counter_tag_id)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_default_tag_counter_tags_counter ON default_tag_counter_tags(counter_tag_id)`
+
   console.log('✅ Migrations complete')
 }

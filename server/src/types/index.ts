@@ -1,8 +1,11 @@
+// `hint` holds the applies-when text (when to suggest the tag);
+// rewrite_instructions is what Rewrite weaves into the prompt.
 export interface Tag {
   id: number
   user_id: string
   name: string
   hint: string
+  rewrite_instructions: string
   sort_order: number
 }
 
@@ -10,7 +13,18 @@ export interface DefaultTag {
   id: number
   name: string
   hint: string
+  rewrite_instructions: string
   sort_order: number
+}
+
+// API shape: a tag plus the ids it counters (expanded from the canonical
+// stored pairs to both directions).
+export interface TagWithCounters extends Tag {
+  counter_tag_ids: number[]
+}
+
+export interface DefaultTagWithCounters extends DefaultTag {
+  counter_tag_ids: number[]
 }
 
 export interface Profile {

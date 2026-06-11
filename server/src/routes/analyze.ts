@@ -22,12 +22,12 @@ router.post('/', async (req: Request, res: Response) => {
 
   const systemPrompt = `You are a prompt engineering expert. Your job is to analyze the given LLM prompt template and suggest which of the following enhancement tags would most meaningfully improve it.
 
-Available tags:
+Available tags (applies_when describes the conditions under which a tag is relevant):
 ${tagList}
 
 Rules:
 - Treat {{variable}} placeholders as dynamic inputs; do not analyze their values.
-- Suggest only tags that would genuinely improve the prompt's quality or clarity.
+- Suggest only tags whose applies_when conditions genuinely match this prompt.
 - Return ONLY valid JSON, no explanation.
 
 Response format:

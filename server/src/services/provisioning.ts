@@ -15,9 +15,23 @@ export async function ensureUserProvisioned(userId: string): Promise<void> {
     if (inserted.length === 0) return // already provisioned
 
     await tx`
-      INSERT INTO tags (user_id, name, hint, sort_order)
-      SELECT ${userId}, name, hint, sort_order FROM default_tags
+      INSERT INTO tags (user_id, name, hint, rewrite_instructions, sort_order)
+      SELECT ${userId}, name, hint, rewrite_instructions, sort_order FROM default_tags
       ON CONFLICT (user_id, name) DO NOTHING
+    `
+
+    // Remap the template's counter pairs onto the freshly copied tags. Names
+    // are the join key (the copy above preserves them); LEAST/GREATEST keeps
+    // the canonical lower-id-first order the CHECK constraint requires.
+    await tx`
+      INSERT INTO tag_counter_tags (tag_id, counter_tag_id)
+      SELECT LEAST(ua.id, ub.id), GREATEST(ua.id, ub.id)
+      FROM default_tag_counter_tags dc
+      JOIN default_tags da ON da.id = dc.tag_id
+      JOIN default_tags db ON db.id = dc.counter_tag_id
+      JOIN tags ua ON ua.user_id = ${userId} AND ua.name = da.name
+      JOIN tags ub ON ub.user_id = ${userId} AND ub.name = db.name
+      ON CONFLICT DO NOTHING
     `
   })
 }

@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import type { PromptWithDetails } from '@/types'
+import { api, type TagInput } from '@/lib/api'
 import type { Provider } from '@/lib/models'
 
 export function usePromptList() {
@@ -66,7 +65,7 @@ export function useTags() {
 export function useCreateTag() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { name: string; hint: string; sort_order?: number }) => api.tags.create(data),
+    mutationFn: (data: TagInput) => api.tags.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tags'] }),
   })
 }
@@ -74,7 +73,7 @@ export function useCreateTag() {
 export function useUpdateTag() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: { name?: string; hint?: string; sort_order?: number } }) =>
+    mutationFn: ({ id, data }: { id: number; data: Partial<TagInput> }) =>
       api.tags.update(id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tags'] }),
   })
@@ -101,7 +100,7 @@ export function useDefaultTags(enabled: boolean) {
 export function useCreateDefaultTag() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { name: string; hint: string; sort_order?: number }) => api.defaultTags.create(data),
+    mutationFn: (data: TagInput) => api.defaultTags.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['default-tags'] }),
   })
 }
@@ -109,7 +108,7 @@ export function useCreateDefaultTag() {
 export function useUpdateDefaultTag() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: { name?: string; hint?: string; sort_order?: number } }) =>
+    mutationFn: ({ id, data }: { id: number; data: Partial<TagInput> }) =>
       api.defaultTags.update(id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['default-tags'] }),
   })

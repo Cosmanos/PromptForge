@@ -10,7 +10,13 @@ import type {
 } from '@/types'
 import type { Provider } from '@/lib/models'
 
-type TagInput = { name: string; hint: string; sort_order?: number }
+export type TagInput = {
+  name: string
+  hint: string
+  rewrite_instructions: string
+  sort_order?: number
+  counter_tag_ids?: number[]
+}
 import { supabase } from '@/lib/supabase'
 
 const BASE = (import.meta.env.VITE_API_URL ?? '') + '/api'

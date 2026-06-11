@@ -10,6 +10,7 @@ import { AuthPage } from '@/pages/AuthPage'
 import { HomePage } from '@/pages/HomePage'
 import { BuilderPage } from '@/pages/BuilderPage'
 import { ExecutionPage } from '@/pages/ExecutionPage'
+import { TagsPage } from '@/pages/TagsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 
 function Spinner() {
@@ -44,8 +45,9 @@ function ProvisionedRoutes() {
         <Route element={<AppShell />}>
           <Route path="/build" element={<BuilderRoute />} />
           <Route path="/build/:id" element={<BuilderRoute />} />
-          <Route path="/use" element={<HomePage />} />
-          <Route path="/use/:id/run" element={<ExecutionPage />} />
+          <Route path="/prompts" element={<HomePage />} />
+          <Route path="/prompts/:id/run" element={<ExecutionPage />} />
+          <Route path="/tags" element={<TagsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/build" replace />} />

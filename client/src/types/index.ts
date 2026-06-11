@@ -2,12 +2,17 @@ import type { ColorToken } from '@/lib/utils'
 
 // ---- API Types ----
 
+// `hint` holds the applies-when text (when Analyze should suggest the tag);
+// rewrite_instructions is what Rewrite weaves into the prompt. counter_tag_ids
+// lists the tags this one conflicts with (bidirectional, warn-only).
 export interface Tag {
   id: number
   user_id: string
   name: string
   hint: string
+  rewrite_instructions: string
   sort_order: number
+  counter_tag_ids: number[]
 }
 
 // Admin template tag (no owner). Shape otherwise mirrors Tag.
@@ -15,7 +20,9 @@ export interface DefaultTag {
   id: number
   name: string
   hint: string
+  rewrite_instructions: string
   sort_order: number
+  counter_tag_ids: number[]
 }
 
 export interface Me {

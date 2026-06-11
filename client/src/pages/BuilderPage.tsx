@@ -53,7 +53,9 @@ function BuilderContent() {
   const [model, setModel] = useState('gpt-4o')
   const [activeVersion, setActiveVersion] = useState<'original' | 'rewritten'>('original')
   const [rewrittenPrompt, setRewrittenPrompt] = useState<string | null>(null)
-  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
+  // Applied = the tags Rewrite consumes, persisted as prompt_tags. Suggestions
+  // are transient Analyze output and never persisted.
+  const [appliedTagIds, setAppliedTagIds] = useState<number[]>([])
   const [suggestedTagIds, setSuggestedTagIds] = useState<number[]>([])
   const [hasAnalyzed, setHasAnalyzed] = useState(false)
   const [isRewriteStale, setIsRewriteStale] = useState(false)
@@ -83,7 +85,7 @@ function BuilderContent() {
       setModel(prompt.model)
       setActiveVersion(prompt.active_version)
       setRewrittenPrompt(prompt.rewritten_prompt)
-      setSelectedTagIds(prompt.tag_ids)
+      setAppliedTagIds(prompt.tag_ids)
       store.loadVariables(prompt.variables)
       setInitialized(true)
     }
@@ -109,7 +111,7 @@ function BuilderContent() {
       model,
       raw_prompt: originalRaw,
       active_version: activeVersion,
-      tag_ids: selectedTagIds,
+      tag_ids: appliedTagIds,
       variables: store.variables,
     },
     initialized && (originalDirty || metaDirty || store.isDirty)
@@ -156,14 +158,15 @@ function BuilderContent() {
       data: { raw_prompt: originalRaw, name, model },
     })
     const result = await analyze.mutateAsync(promptId)
-    setSuggestedTagIds(result.suggested_tag_ids)
-    setSelectedTagIds(result.suggested_tag_ids)
+    // Suggestions only — applying is the user's click. Already-applied tags
+    // don't need re-suggesting.
+    setSuggestedTagIds(result.suggested_tag_ids.filter((tid) => !appliedTagIds.includes(tid)))
     setHasAnalyzed(true)
   }
 
   async function handleRewrite() {
-    if (!promptId || selectedTagIds.length === 0) return
-    const result = await rewrite.mutateAsync({ id: promptId, tag_ids: selectedTagIds })
+    if (!promptId || appliedTagIds.length === 0) return
+    const result = await rewrite.mutateAsync({ id: promptId, tag_ids: appliedTagIds })
     setRewrittenPrompt(result.rewritten_prompt)
     // If the rewritten editor is already mounted (re-rewrite), reset its content;
     // on first rewrite it mounts fresh with this content via initialRaw.
@@ -175,15 +178,21 @@ function BuilderContent() {
       data: {
         rewritten_prompt: result.rewritten_prompt,
         active_version: 'rewritten',
-        tag_ids: selectedTagIds,
+        tag_ids: appliedTagIds,
       },
     })
   }
 
-  function handleToggleTag(tagId: number) {
-    setSelectedTagIds((prev) =>
-      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
-    )
+  // Moves a tag into Applied (from a suggestion click or the "+" dropdown).
+  function handleApplyTag(tagId: number) {
+    setAppliedTagIds((prev) => (prev.includes(tagId) ? prev : [...prev, tagId]))
+    setSuggestedTagIds((prev) => prev.filter((id) => id !== tagId))
+    setMetaDirty(true)
+  }
+
+  // Removing never returns the tag to Suggestions — Analyze can re-suggest it.
+  function handleRemoveTag(tagId: number) {
+    setAppliedTagIds((prev) => prev.filter((id) => id !== tagId))
     setMetaDirty(true)
   }
 
@@ -264,13 +273,14 @@ function BuilderContent() {
         {/* Tags */}
         <TagBar
           tags={allTags}
-          selectedTagIds={selectedTagIds}
+          appliedTagIds={appliedTagIds}
           suggestedTagIds={suggestedTagIds}
-          onToggleTag={handleToggleTag}
+          onApply={handleApplyTag}
+          onRemove={handleRemoveTag}
           onRewrite={handleRewrite}
           isRewriteLoading={rewrite.isPending}
           isRewriteStale={isRewriteStale}
-          showRewrite={hasAnalyzed || selectedTagIds.length > 0}
+          showRewrite={hasAnalyzed || appliedTagIds.length > 0}
         />
 
         {/* Version toggle */}

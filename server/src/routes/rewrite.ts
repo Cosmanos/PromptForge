@@ -3,7 +3,7 @@ import { z } from 'zod'
 import sql from '../db/database'
 import { callJSON } from '../services/llm'
 import { resolveKeyForModel } from '../services/credentials'
-import { getTagsByIds, buildTagHintsForRewrite } from '../services/tagService'
+import { getTagsByIds, buildRewriteInstructions } from '../services/tagService'
 import { Prompt } from '../types'
 
 const router = Router({ mergeParams: true })
@@ -28,7 +28,7 @@ router.post('/', async (req: Request, res: Response) => {
   const tags = await getTagsByIds(parsed.data.tag_ids, req.userId!)
   if (tags.length === 0) return res.status(400).json({ error: 'No valid tags found' })
 
-  const tagHints = buildTagHintsForRewrite(tags)
+  const tagHints = buildRewriteInstructions(tags)
 
   const systemPrompt = `You are a prompt engineering expert. Rewrite the following LLM prompt template to naturally embed the selected enhancement behaviors listed below.
 

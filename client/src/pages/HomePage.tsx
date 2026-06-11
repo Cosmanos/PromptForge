@@ -47,7 +47,7 @@ export function HomePage() {
           <PromptGrid
             prompts={filtered}
             onNew={handleNew}
-            onExecute={(id) => navigate(`/use/${id}/run`)}
+            onExecute={(id) => navigate(`/prompts/${id}/run`)}
             onEdit={(id) => navigate(`/build/${id}`)}
             onDelete={handleDelete}
           />
