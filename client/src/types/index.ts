@@ -51,7 +51,11 @@ export interface PromptListItem {
   name: string
   model: string
   active_version: 'original' | 'rewritten'
+  is_saved: boolean
+  // First chars of raw_prompt — feeds the derived display title for drafts.
+  raw_snippet: string
   variable_count: number
+  variable_names: string[]
   created_at: string
   updated_at: string
 }
@@ -63,6 +67,7 @@ export interface PromptWithDetails {
   rewritten_prompt: string | null
   active_version: 'original' | 'rewritten'
   model: string
+  is_saved: boolean
   created_at: string
   updated_at: string
   variables: Variable[]

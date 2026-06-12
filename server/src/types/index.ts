@@ -50,6 +50,7 @@ export interface Prompt {
   rewritten_prompt: string | null
   active_version: 'original' | 'rewritten'
   model: string
+  is_saved: boolean
   created_at: string
   updated_at: string
 }

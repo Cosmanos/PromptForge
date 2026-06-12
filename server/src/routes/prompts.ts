@@ -10,6 +10,7 @@ const router = Router()
 const CreatePromptSchema = z.object({
   name: z.string().optional(),
   model: z.string().optional(),
+  raw_prompt: z.string().optional(),
 })
 
 const UpdatePromptSchema = z.object({
@@ -18,6 +19,7 @@ const UpdatePromptSchema = z.object({
   rewritten_prompt: z.string().nullable().optional(),
   active_version: z.enum(['original', 'rewritten']).optional(),
   model: z.string().optional(),
+  is_saved: z.boolean().optional(),
   variables: z
     .array(
       z.object({
@@ -58,16 +60,31 @@ async function getPromptWithDetails(
 
 // ---- Routes ----
 
-// GET /api/prompts — list the caller's prompts
+// GET /api/prompts — list the caller's prompts.
+// ?saved=true  → only saved prompts (My Prompts / Execution).
+// ?limit=N     → cap the list (the sidebar's Recent list).
+// raw_snippet feeds the client-side display title for drafts; variable_names
+// lets cards/execution render variables as chips instead of a count.
 router.get('/', async (req: Request, res: Response) => {
   const userId = req.userId!
+  const savedOnly = req.query.saved === 'true'
+  const limit = Number(req.query.limit)
   const prompts = await sql`
-    SELECT p.*, COUNT(v.id) as variable_count
+    SELECT p.id, p.name, p.model, p.active_version, p.is_saved,
+           p.created_at, p.updated_at,
+           LEFT(p.raw_prompt, 200) AS raw_snippet,
+           COUNT(v.id)::int AS variable_count,
+           COALESCE(
+             ARRAY_AGG(v.name ORDER BY v.sort_order) FILTER (WHERE v.id IS NOT NULL),
+             '{}'
+           ) AS variable_names
     FROM prompts p
     LEFT JOIN variables v ON v.prompt_id = p.id
     WHERE p.user_id = ${userId}
+    ${savedOnly ? sql`AND p.is_saved = true` : sql``}
     GROUP BY p.id
     ORDER BY p.updated_at DESC
+    ${Number.isFinite(limit) && limit > 0 ? sql`LIMIT ${limit}` : sql``}
   `
   res.json(prompts)
 })
@@ -80,17 +97,24 @@ router.get('/:id', async (req: Request, res: Response) => {
   res.json(prompt)
 })
 
-// POST /api/prompts — create new prompt owned by the caller
+// POST /api/prompts — create a new draft owned by the caller. Drafts must
+// carry real content (a name or prompt text): empty drafts never persist.
 router.post('/', async (req: Request, res: Response) => {
   const parsed = CreatePromptSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
 
   const userId = req.userId!
-  const name = parsed.data.name ?? 'Untitled Prompt'
+  const name = parsed.data.name?.trim() ?? ''
   const model = parsed.data.model ?? 'gpt-4o'
+  const rawPrompt = parsed.data.raw_prompt ?? ''
+
+  if (name === '' && rawPrompt.trim() === '') {
+    return res.status(400).json({ error: 'Empty drafts are not persisted' })
+  }
 
   const [{ id }] = await sql<[{ id: number }]>`
-    INSERT INTO prompts (name, model, user_id) VALUES (${name}, ${model}, ${userId}) RETURNING id
+    INSERT INTO prompts (name, model, raw_prompt, user_id)
+    VALUES (${name}, ${model}, ${rawPrompt}, ${userId}) RETURNING id
   `
 
   const prompt = await getPromptWithDetails(Number(id), userId)
@@ -117,6 +141,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
   if (data.rewritten_prompt !== undefined) updateObj.rewritten_prompt = data.rewritten_prompt
   if (data.active_version !== undefined) updateObj.active_version = data.active_version
   if (data.model !== undefined) updateObj.model = data.model
+  if (data.is_saved !== undefined) updateObj.is_saved = data.is_saved
 
   if (Object.keys(updateObj).length > 0) {
     updateObj.updated_at = new Date()

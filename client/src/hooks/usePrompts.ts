@@ -2,10 +2,21 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, type TagInput } from '@/lib/api'
 import type { Provider } from '@/lib/models'
 
+// My Prompts / Execution: the saved library only — drafts never show here.
 export function usePromptList() {
   return useQuery({
-    queryKey: ['prompts'],
-    queryFn: () => api.prompts.list(),
+    queryKey: ['prompts', 'saved'],
+    queryFn: () => api.prompts.list({ saved: true }),
+  })
+}
+
+// Sidebar Recent: recently touched prompts, drafts and saved alike.
+export const RECENT_LIMIT = 15
+
+export function useRecentPrompts() {
+  return useQuery({
+    queryKey: ['prompts', 'recent'],
+    queryFn: () => api.prompts.list({ limit: RECENT_LIMIT }),
   })
 }
 
@@ -125,7 +136,8 @@ export function useDeleteDefaultTag() {
 export function useCreatePrompt() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data?: { name?: string; model?: string }) => api.prompts.create(data),
+    mutationFn: (data?: { name?: string; model?: string; raw_prompt?: string }) =>
+      api.prompts.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['prompts'] }),
   })
 }

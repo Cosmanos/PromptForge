@@ -35,6 +35,23 @@ export function colorFromString(colorJson: string): ColorToken {
   }
 }
 
+// Display title for a prompt: the user-given name when there is one, else a
+// label derived from the first words of the prompt text (drafts are unnamed),
+// so "Untitled" never shows up in lists.
+const TITLE_WORDS = 8
+
+export function displayTitle(p: { name: string; raw_snippet?: string; raw_prompt?: string }): string {
+  if (p.name.trim() !== '') return p.name
+  const text = (p.raw_snippet ?? p.raw_prompt ?? '')
+    .replace(/\{\{(\w+)\}\}/g, '$1') // show variable names bare, not {{braced}}
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (text === '') return 'Untitled'
+  const words = text.split(' ')
+  const label = words.slice(0, TITLE_WORDS).join(' ')
+  return words.length > TITLE_WORDS ? `${label}…` : label
+}
+
 export function compilePromptClient(
   rawPrompt: string,
   variableValues: Record<string, string>

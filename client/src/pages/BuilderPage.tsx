@@ -6,7 +6,9 @@ import {
   Play,
   Wand2,
   Plus,
+  Bookmark,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { TagBar } from '@/components/builder/TagBar'
@@ -48,8 +50,13 @@ function BuilderContent() {
   const createPrompt = useCreatePrompt()
   const creatingRef = useRef(false)
 
-  // Builder state
-  const [name, setName] = useState('Untitled Prompt')
+  // Builder state. A new prompt is a nameless draft; the display title is
+  // derived from its content until "Save for later" names it.
+  const [name, setName] = useState('')
+  const [isSaved, setIsSaved] = useState(false)
+  // Save-for-later needs a real name first; this flags the name field.
+  const [nameRequired, setNameRequired] = useState(false)
+  const nameInputRef = useRef<HTMLInputElement>(null)
   const [model, setModel] = useState('gpt-4o')
   const [activeVersion, setActiveVersion] = useState<'original' | 'rewritten'>('original')
   const [rewrittenPrompt, setRewrittenPrompt] = useState<string | null>(null)
@@ -82,6 +89,7 @@ function BuilderContent() {
   useEffect(() => {
     if (prompt && !initialized) {
       setName(prompt.name)
+      setIsSaved(prompt.is_saved)
       setModel(prompt.model)
       setActiveVersion(prompt.active_version)
       setRewrittenPrompt(prompt.rewritten_prompt)
@@ -91,17 +99,29 @@ function BuilderContent() {
     }
   }, [prompt, initialized]) // eslint-disable-line
 
-  // Lazy creation: only create the prompt record when the user starts working.
+  // Lazy draft creation: a row exists only once there's real content (prompt
+  // text or a typed name) — fiddling with the model alone persists nothing,
+  // and an empty editor never creates a row. Debounced like autosave so the
+  // draft is born after typing settles, not on the first keystroke.
   useEffect(() => {
     if (!isNew || promptId || creatingRef.current) return
-    const hasContent = originalDirty || metaDirty || name !== 'Untitled Prompt'
+    const hasContent = originalRaw.trim() !== '' || name.trim() !== ''
     if (!hasContent) return
-    creatingRef.current = true
-    createPrompt.mutateAsync({}).then((newPrompt) => {
-      setPromptId(newPrompt.id)
-      window.history.replaceState(null, '', `/build/${newPrompt.id}`)
-    })
-  }, [isNew, promptId, originalDirty, metaDirty, name]) // eslint-disable-line
+    const timer = setTimeout(() => {
+      if (creatingRef.current) return
+      creatingRef.current = true
+      createPrompt
+        .mutateAsync({ name: name.trim(), model, raw_prompt: originalRaw })
+        .then((newPrompt) => {
+          setPromptId(newPrompt.id)
+          window.history.replaceState(null, '', `/build/${newPrompt.id}`)
+        })
+        .catch(() => {
+          creatingRef.current = false
+        })
+    }, 800)
+    return () => clearTimeout(timer)
+  }, [isNew, promptId, originalRaw, name, model]) // eslint-disable-line
 
   // Auto-save original prompt + variables.
   useAutoSave(
@@ -144,6 +164,36 @@ function BuilderContent() {
   function handleNameChange(value: string) {
     setName(value)
     setMetaDirty(true)
+    if (value.trim() !== '') setNameRequired(false)
+  }
+
+  // Save for later: names the prompt and flips it from draft to saved. Needs
+  // a real name first — without one we flag the name field inline instead of
+  // saving. Idempotent: re-saving a saved prompt is a no-op PATCH.
+  async function handleSaveForLater() {
+    if (name.trim() === '') {
+      setNameRequired(true)
+      nameInputRef.current?.focus()
+      return
+    }
+    let id = promptId
+    if (!id) {
+      // Saving before the debounced draft creation fired — create it now.
+      creatingRef.current = true
+      const newPrompt = await createPrompt.mutateAsync({
+        name: name.trim(),
+        model,
+        raw_prompt: originalRaw,
+      })
+      id = newPrompt.id
+      setPromptId(id)
+      window.history.replaceState(null, '', `/build/${id}`)
+    }
+    await updatePrompt.mutateAsync({
+      id,
+      data: { name: name.trim(), is_saved: true },
+    })
+    setIsSaved(true)
   }
 
   function handleModelChange(value: string) {
@@ -255,11 +305,41 @@ function BuilderContent() {
       <header className="border-b border-border bg-surface shrink-0 z-10">
         <div className="max-w-3xl mx-auto px-6 py-3 flex items-center gap-3">
           <Input
+            ref={nameInputRef}
             value={name}
             onChange={(e) => handleNameChange(e.target.value)}
-            className="flex-1 border-0 text-base font-medium focus-visible:ring-0 px-0"
-            placeholder="Prompt name..."
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && nameRequired) handleSaveForLater()
+            }}
+            className={cn(
+              'flex-1 border-0 text-base font-medium focus-visible:ring-0 px-0',
+              nameRequired && 'placeholder:text-destructive'
+            )}
+            placeholder={nameRequired ? 'Name this prompt to save it…' : 'Untitled prompt'}
           />
+          {/* Draft / Saved indicator — never ambiguous what's persisted. */}
+          {isSaved ? (
+            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-success">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Saved
+            </span>
+          ) : (
+            <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+              Draft
+            </span>
+          )}
+          {!isSaved && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSaveForLater}
+              disabled={updatePrompt.isPending || createPrompt.isPending}
+              className="shrink-0 gap-1.5"
+            >
+              <Bookmark className="h-3.5 w-3.5" />
+              Save for later
+            </Button>
+          )}
           <ModelSelectorChip
             value={model}
             onChange={handleModelChange}

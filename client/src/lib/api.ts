@@ -50,9 +50,15 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   prompts: {
-    list: () => req<PromptListItem[]>('/prompts'),
+    list: (params?: { saved?: boolean; limit?: number }) => {
+      const qs = new URLSearchParams()
+      if (params?.saved) qs.set('saved', 'true')
+      if (params?.limit) qs.set('limit', String(params.limit))
+      const q = qs.toString()
+      return req<PromptListItem[]>(`/prompts${q ? `?${q}` : ''}`)
+    },
     get: (id: number) => req<PromptWithDetails>(`/prompts/${id}`),
-    create: (data?: { name?: string; model?: string }) =>
+    create: (data?: { name?: string; model?: string; raw_prompt?: string }) =>
       req<PromptWithDetails>('/prompts', { method: 'POST', body: JSON.stringify(data ?? {}) }),
     update: (id: number, data: Partial<Omit<PromptWithDetails, 'variables'>> & { tag_ids?: number[]; variables?: Array<{ name: string; default_value: string; color: string; sort_order: number }> }) =>
       req<PromptWithDetails>(`/prompts/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),

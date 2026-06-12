@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { SearchBar } from '@/components/home/SearchBar'
 import { PromptGrid } from '@/components/home/PromptGrid'
 import { usePromptList, useDeletePrompt } from '@/hooks/usePrompts'
+import { displayTitle } from '@/lib/utils'
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -12,7 +13,7 @@ export function HomePage() {
   const deletePrompt = useDeletePrompt()
 
   const filtered = prompts.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+    displayTitle(p).toLowerCase().includes(search.toLowerCase())
   )
 
   function handleNew() {

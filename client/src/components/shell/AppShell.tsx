@@ -1,13 +1,12 @@
 import { Outlet } from 'react-router-dom'
-import { NavRail } from './NavRail'
+import { Sidebar } from './Sidebar'
 import { OnboardingConnect } from '@/components/OnboardingConnect'
 
-// Persistent icon rail + main content. The rail is narrow enough to stay
-// visible at every breakpoint, so there is no mobile drawer.
+// Persistent labeled sidebar (sections + Recent + account) + main content.
 export function AppShell() {
   return (
     <div className="flex h-screen bg-surface text-foreground">
-      <NavRail />
+      <Sidebar />
       <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
         <Outlet />
       </main>

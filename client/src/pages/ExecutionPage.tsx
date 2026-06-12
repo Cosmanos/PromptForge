@@ -8,6 +8,8 @@ import { HistorySidebar } from '@/components/execution/HistorySidebar'
 import { usePrompt, useConnections } from '@/hooks/usePrompts'
 import { api } from '@/lib/api'
 import { isModelConnected } from '@/lib/models'
+import { displayTitle } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 export function ExecutionPage() {
@@ -96,7 +98,7 @@ export function ExecutionPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-base font-medium truncate">{prompt.name}</h1>
+            <h1 className="text-base font-medium truncate">{displayTitle(prompt)}</h1>
             <p className="text-xs text-muted-foreground">
               {prompt.active_version === 'rewritten' ? 'Rewritten prompt' : 'Original prompt'} · {prompt.model}
             </p>
@@ -138,6 +140,16 @@ export function ExecutionPage() {
               <p className="text-sm text-muted-foreground mb-6">
                 Fill in the variables below, then execute.
               </p>
+              {/* What the prompt expects, at a glance. */}
+              {prompt.variables.length > 0 && (
+                <div className="mb-6 flex flex-wrap gap-1.5">
+                  {prompt.variables.map((v) => (
+                    <Badge key={v.id} variant="outline" className="font-mono">
+                      {v.name}
+                    </Badge>
+                  ))}
+                </div>
+              )}
               {!modelConnected && (
                 <div className="mb-6 rounded-md border border-border bg-surface-muted px-4 py-3 text-sm text-muted-foreground">
                   No key connected for this prompt's model ({prompt.model}).{' '}

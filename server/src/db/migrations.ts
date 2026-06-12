@@ -195,5 +195,35 @@ export async function runMigrations(): Promise<void> {
   await sql`CREATE INDEX IF NOT EXISTS idx_tag_counter_tags_counter ON tag_counter_tags(counter_tag_id)`
   await sql`CREATE INDEX IF NOT EXISTS idx_default_tag_counter_tags_counter ON default_tag_counter_tags(counter_tag_id)`
 
+  // ---- Part 6: draft vs. saved prompts ----
+  // A prompt starts as a draft (is_saved = false): autosaved, shown only in
+  // Recent, purged when stale. "Save for later" flips is_saved and is what
+  // admits it into My Prompts / Execution. Drafts keep name = '' so the UI
+  // derives a display title from the prompt text ("Untitled" stops existing).
+  //
+  // The backfill must run exactly once (re-running would re-promote rows the
+  // user has since demoted to drafts), so it's guarded by the column add.
+  await sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'prompts' AND column_name = 'is_saved'
+      ) THEN
+        ALTER TABLE prompts ADD COLUMN is_saved BOOLEAN NOT NULL DEFAULT false;
+        -- Legacy placeholder names become empty so titles derive from content.
+        UPDATE prompts SET name = '' WHERE btrim(name) IN ('', 'Untitled Prompt', 'Untitled');
+        -- Deliberately named prompts are the user's library; untitled rows
+        -- (with or without content) become drafts under the purge rule.
+        UPDATE prompts SET is_saved = true WHERE name <> '';
+        -- Empty untitled rows should never have persisted — drop them now.
+        DELETE FROM prompts WHERE is_saved = false AND btrim(raw_prompt) = '';
+      END IF;
+    END $$
+  `
+  await sql`ALTER TABLE prompts ALTER COLUMN name SET DEFAULT ''`
+  await sql`CREATE INDEX IF NOT EXISTS idx_prompts_user_saved ON prompts(user_id, is_saved)`
+
   console.log('✅ Migrations complete')
 }
